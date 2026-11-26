@@ -7,7 +7,7 @@ struct SectionHead<Trailing: View>: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(title).label()
+            Text(title).title()
             Spacer(minLength: 8)
             trailing
         }

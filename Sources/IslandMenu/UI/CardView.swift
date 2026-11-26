@@ -9,7 +9,7 @@ struct CardView: View {
             Hairline()
             CPUSection()
             Hairline()
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
                 MemorySection()
                 Hairline(vertical: true)
                 StorageSection()

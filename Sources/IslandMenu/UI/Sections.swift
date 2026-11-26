@@ -36,8 +36,10 @@ struct StorageSection: View {
                 Text("/ \(Format.decimalGigabytes(disk.total)) GB").detail()
             }
             SegmentBar(segments: [(Double(disk.used) / Double(max(disk.total, 1)), Theme.primary)])
-            if trend.count > 1 {
-                Sparkline(values: trend.map { $0 - (trend.min() ?? 0) * 0.98 }).frame(height: 18)
+            // A trend line only means something once the usage has actually moved.
+            if trend.count > 1, let low = trend.min(), let high = trend.max(), high > low {
+                // Stretch the span between the lowest and highest day over the chart, off a small floor.
+                Sparkline(values: trend.map { 0.15 + 0.85 * ($0 - low) / (high - low) }, ceiling: 1).frame(height: 18)
             }
             Text("读 \(Format.rate(disk.readRate)) · 写 \(Format.rate(disk.writeRate))").label()
         }

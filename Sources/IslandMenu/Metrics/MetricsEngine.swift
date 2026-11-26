@@ -82,6 +82,7 @@ final class Samplers: @unchecked Sendable {
     let battery = BatterySampler()
     let gpu = GPUSampler()
     let thermal = ThermalSampler()
+    let fans = FanSampler()
     let processes = ProcessSampler()
     let activity = ActivityStore()
     private var tick = 0
@@ -102,6 +103,7 @@ final class Samplers: @unchecked Sendable {
         snapshot.gpu = gpu.sample()
         snapshot.thermal = thermal.sample()
         snapshot.gpu.temperature = snapshot.thermal.dieMean
+        snapshot.fans = fans.sample()
         // The process walk is the most expensive sample, so it runs at half rate.
         if tick % 2 == 1 { lastProcesses = ProcessSampler.top(processes.sample(), limit: 4) }
         snapshot.processes = lastProcesses

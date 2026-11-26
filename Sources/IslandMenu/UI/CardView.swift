@@ -3,7 +3,7 @@ import SwiftUI
 struct CardView: View {
     var body: some View {
         VStack(spacing: 0) {
-            ModelPlaceholderSection()
+            MachineSection()
             Hairline()
             CPUSection()
             Hairline()
@@ -30,39 +30,6 @@ struct CardView: View {
 extension View {
     func section() -> some View {
         padding(.horizontal, Theme.padding).padding(.vertical, 14).frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// Stand-in until the 3D model lands: the lid outline plus the temperatures we can read.
-struct ModelPlaceholderSection: View {
-    @EnvironmentObject private var engine: MetricsEngine
-
-    var body: some View {
-        let thermal = engine.snapshot.thermal
-        VStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(LinearGradient(colors: [Color(white: 0.14), Color(white: 0.08)], startPoint: .top, endPoint: .bottom))
-                RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(.white.opacity(0.16), lineWidth: 1)
-                Image(systemName: "apple.logo").font(.system(size: 34)).foregroundStyle(.white.opacity(0.9))
-            }
-            .frame(width: 250, height: 162)
-            HStack(spacing: 0) {
-                reading("芯片最高", thermal.dieMax)
-                reading("芯片平均", thermal.dieMean)
-                reading("SSD", thermal.ssd)
-                reading("电池", thermal.battery)
-            }
-        }
-        .section()
-    }
-
-    private func reading(_ title: String, _ value: Double?) -> some View {
-        VStack(spacing: 1) {
-            Text(Format.degrees(value)).value()
-            Text(title).label()
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 

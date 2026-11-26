@@ -9,3 +9,6 @@ refs/
 tools/
 IMG_*.PNG
 assets/reference/
+# Blender scratch files
+assets/model/.render-log
+*.blend1

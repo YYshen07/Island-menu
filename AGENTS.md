@@ -18,8 +18,17 @@ No tests or linter are set up yet.
 - `Sources/IslandMenu/Metrics/` — samplers (one file per subsystem) and `MetricsEngine`.
 - `Sources/IslandMenu/UI/` — SwiftUI card and sections.
 - `mockup/` — static web design mockup with simulated data.
-- `docs/3d-model-brief.md` — spec for the 3D machine model (built separately in Blender).
+- `docs/3d-model-brief.md` — spec for the 3D machine model (built separately in Blender, lives in `assets/model/`).
 - `refs/` — cloned reference repos (git-ignored): logoctl, LogoLight, DynamicNotchKit, stats, macmon.
+
+## 3D model
+
+- `bundle.sh` copies `assets/model/macbook-pro-14-xray.usdz` into the app's `Contents/Resources`. A plain
+  `swift build` binary has no model and the machine section renders without it.
+- Check camera and lighting without launching the UI:
+  `.build/debug/IslandMenu --render-model assets/model/macbook-pro-14-xray.usdz /tmp/model.png`
+- `MachineScene` looks nodes up by the names in `docs/3d-model-brief.md`; renaming them breaks the bindings.
+- SceneKit calls the renderer delegate on its render thread, not the main actor.
 
 ## Conventions
 
@@ -28,5 +37,6 @@ No tests or linter are set up yet.
 - Island clicks are handled by `NSEvent` monitors in `IslandController`, not SwiftUI gestures; the
   closed panel is fully transparent and SwiftUI would never see the click.
 - The fast sampling loop must only run while the card is open. Closed, only the 60 s activity tick runs.
+- Stage files by path when committing; `assets/` and `tools/` receive files from other tools mid-session.
 - Do not show a metric the app cannot actually read; leave it out until the sampler exists.
 - Functions ≤ 50 lines, files ≤ 500 lines. Code and comments in English, UI strings in Chinese.

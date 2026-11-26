@@ -80,6 +80,7 @@ struct Snapshot {
     var battery = BatterySnapshot()
     var gpu = GPUSnapshot()
     var thermal = ThermalSnapshot()
+    var fans: [FanSnapshot] = []
     var processes: [ProcessRow] = []
     var bootTime = Date()
 }

@@ -47,6 +47,11 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
   SDK marks the same APIs unavailable, which is why an earlier check wrongly concluded there was no API.
 - `Activity.request` is refused unless the app is frontmost ("Requester is not foreground" in
   `liveactivitiesd` logs), so `LiveActivityController` activates the app briefly before asking.
+- The Live Activity is raised only while an alert is active (`AlertMonitor`). To test one, lower a limit:
+  `defaults write dev.yan.islandmenu alertRules -data $(printf '{"cpu":{"enabled":true,"limit":3}}' | xxd -p | tr -d '\n')`,
+  relaunch, wait about 20 s, then `defaults delete dev.yan.islandmenu alertRules`.
+- The system keeps the widget extension process alive across app updates. A stale one cannot decode a changed
+  `ContentState` and the system drops the activity within milliseconds; `install.sh` kills it.
 - A Live Activity cannot host the full panel (static WidgetKit views, no SceneKit, no scrolling), so the
   activity shows headline numbers and links to `islandmenu://panel`, which opens the overlay card.
 - The system island draws above every window level; the overlay card cannot cover it.

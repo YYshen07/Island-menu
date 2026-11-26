@@ -1,3 +1,4 @@
+import IslandShared
 import ServiceManagement
 import SwiftUI
 
@@ -5,6 +6,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             FanSettings().tabItem { Label("风扇", systemImage: "fan") }
+            AlertSettings().tabItem { Label("提醒", systemImage: "bell.badge") }
             BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }
             GeneralSettings().tabItem { Label("通用", systemImage: "gearshape") }
         }
@@ -45,6 +47,35 @@ private struct FanSettings: View {
                 }
                 .font(.caption)
                 Button("恢复默认曲线") { preferences.fanCurve = Preferences.defaultCurve }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+private struct AlertSettings: View {
+    @EnvironmentObject private var preferences: Preferences
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(AlertKind.allCases, id: \.self) { kind in
+                    let rule = preferences.alertRule(kind)
+                    HStack(spacing: 12) {
+                        Toggle(isOn: Binding(get: { rule.enabled }, set: { preferences.setAlertRule(AlertRule(enabled: $0, limit: rule.limit), for: kind) })) {
+                            Label(kind.title, systemImage: kind.symbol)
+                        }
+                        Spacer()
+                        Slider(value: Binding(get: { rule.limit }, set: { preferences.setAlertRule(AlertRule(enabled: rule.enabled, limit: $0.rounded()), for: kind) }),
+                               in: Preferences.alertLimitRanges[kind] ?? 50...100)
+                            .frame(width: 150)
+                            .disabled(!rule.enabled)
+                        Text("\(Int(rule.limit))\(kind.unit)").monospacedDigit().frame(width: 44, alignment: .trailing)
+                            .foregroundStyle(rule.enabled ? .primary : .secondary)
+                    }
+                }
+            } footer: {
+                Text("读数持续超过阈值约 15 秒后，灵动岛右侧会出现提醒，回落后自动消失。储存空间超过阈值、未接电源时电量低于阈值会立即提醒。提醒出现的一瞬间，Island Menu 会短暂切到前台再切回，这是系统对发起提醒的要求。")
             }
         }
         .formStyle(.grouped)

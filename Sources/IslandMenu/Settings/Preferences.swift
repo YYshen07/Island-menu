@@ -1,4 +1,12 @@
 import Foundation
+import IslandShared
+
+/// When an alert of one kind is raised.
+struct AlertRule: Codable, Equatable {
+    var enabled: Bool
+    /// Percent, or °C for temperature.
+    var limit: Double
+}
 
 /// One node of the fan curve: at `temperature` °C the fans run at `level` (0...1 of their range).
 struct FanCurvePoint: Codable, Equatable {
@@ -17,6 +25,15 @@ final class Preferences: ObservableObject {
     static let temperatureRange = 40.0...100.0
     static let defaultChargeLimit = 85
     static let defaultAwakeBrightness = 0.2
+    static let defaultAlertRules: [AlertKind: AlertRule] = [
+        .cpu: AlertRule(enabled: true, limit: 90),
+        .gpu: AlertRule(enabled: true, limit: 90),
+        .temperature: AlertRule(enabled: true, limit: 95),
+        .battery: AlertRule(enabled: true, limit: 20),
+        .storage: AlertRule(enabled: true, limit: 95),
+    ]
+    /// Allowed range for each kind's limit in the settings UI.
+    static let alertLimitRanges: [AlertKind: ClosedRange<Double>] = [.cpu: 50...100, .gpu: 50...100, .temperature: 60...105, .battery: 5...50, .storage: 70...99]
     static let defaultCurve = [
         FanCurvePoint(temperature: 45, level: 0),
         FanCurvePoint(temperature: 60, level: 0.25),
@@ -30,6 +47,7 @@ final class Preferences: ObservableObject {
         static let chargeLimit = "chargeLimit"
         static let logoMode = "logoMode"
         static let awakeBrightness = "awakeBrightness"
+        static let alertRules = "alertRules"
     }
 
     private let defaults = UserDefaults.standard
@@ -56,6 +74,21 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(awakeBrightness, forKey: Key.awakeBrightness) }
     }
 
+    @Published private(set) var alertRules: [AlertKind: AlertRule] {
+        didSet {
+            let stored = Dictionary(uniqueKeysWithValues: alertRules.map { ($0.key.rawValue, $0.value) })
+            defaults.set(try? JSONEncoder().encode(stored), forKey: Key.alertRules)
+        }
+    }
+
+    func alertRule(_ kind: AlertKind) -> AlertRule {
+        alertRules[kind] ?? Self.defaultAlertRules[kind] ?? AlertRule(enabled: false, limit: 100)
+    }
+
+    func setAlertRule(_ rule: AlertRule, for kind: AlertKind) {
+        alertRules[kind] = rule
+    }
+
     /// Stored so the chosen logo effect comes back after a relaunch.
     var logoMode: LogoMode {
         get { defaults.string(forKey: Key.logoMode).flatMap(LogoMode.init) ?? .auto }
@@ -69,6 +102,8 @@ final class Preferences: ObservableObject {
         showPublicIP = defaults.object(forKey: Key.showPublicIP) as? Bool ?? true
         chargeLimit = defaults.object(forKey: Key.chargeLimit) as? Int ?? Self.defaultChargeLimit
         awakeBrightness = defaults.object(forKey: Key.awakeBrightness) as? Double ?? Self.defaultAwakeBrightness
+        let storedRules = defaults.data(forKey: Key.alertRules).flatMap { try? JSONDecoder().decode([String: AlertRule].self, from: $0) } ?? [:]
+        alertRules = Self.defaultAlertRules.merging(storedRules.compactMap { key, rule in AlertKind(rawValue: key).map { ($0, rule) } }) { _, stored in stored }
     }
 
     /// Fan level the curve asks for at a temperature, interpolating between nodes.

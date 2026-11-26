@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindowController(engine: engine)
     private var signalSources: [DispatchSourceSignal] = []
     private let airDrop = AirDropZone()
-    private let liveActivity = LiveActivityController()
+    private let alerts = AlertMonitor()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let controller = IslandController(engine: engine)
@@ -22,8 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         airDrop.install()
         LogoLight.shared.setMode(Preferences.shared.logoMode)
         FanController.shared.start()
-        liveActivity.start()
-        controller.systemIslandOwnsClicks = { [weak self] in self?.liveActivity.isRunning ?? false }
+        alerts.start()
         if CommandLine.arguments.contains("--open") { controller.setOpen(true) }
         if CommandLine.arguments.contains("--settings") { openSettings() }
         if CommandLine.arguments.contains("--install-helper") { FanController.shared.installHelper() }
@@ -34,10 +33,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LogoLight.shared.restore()
         KeepAwake.shared.stop()
         FanController.shared.shutdown()
-        liveActivity.stop()
+        alerts.stop()
     }
 
-    /// The Live Activity's link and tap target open `islandmenu://panel`.
+    /// The alert's link and tap target open `islandmenu://panel`.
     func application(_ application: NSApplication, open urls: [URL]) {
         guard urls.contains(where: { $0.scheme == IslandLink.scheme }) else { return }
         island?.setOpen(true)
@@ -82,12 +81,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.show()
     }
 
-    /// A small Dynamic Island pill, drawn as a template image so it follows the menu bar's colour.
+    /// The Dynamic Island pill with a level meter cut into it, drawn as a template image so it
+    /// follows the menu bar's colour.
     private static func pillIcon() -> NSImage {
-        let size = NSSize(width: 26, height: 12)
+        let size = NSSize(width: 28, height: 13)
+        let barHeights: [CGFloat] = [3.5, 6, 8.5, 5]
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.black.setFill()
             NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2).fill()
+            // Punch the camera dot and the meter bars out of the pill.
+            NSGraphicsContext.current?.compositingOperation = .destinationOut
+            NSBezierPath(ovalIn: NSRect(x: 5, y: rect.midY - 1.75, width: 3.5, height: 3.5)).fill()
+            for (index, height) in barHeights.enumerated() {
+                let bar = NSRect(x: 12.5 + CGFloat(index) * 3.2, y: rect.midY - height / 2, width: 1.9, height: height)
+                NSBezierPath(roundedRect: bar, xRadius: 0.95, yRadius: 0.95).fill()
+            }
             return true
         }
         image.isTemplate = true

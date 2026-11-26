@@ -1,25 +1,55 @@
 import ActivityKit
 import Foundation
 
-/// The Live Activity Island Menu keeps in the Dynamic Island: a few headline numbers, updated by
-/// the app. Shared by the app (which starts and updates it) and the widget extension (which draws it).
+/// What Island Menu can raise an alert about.
+public enum AlertKind: String, Codable, CaseIterable, Sendable {
+    /// In priority order: when several are active, the earliest is the one shown.
+    case temperature, battery, storage, cpu, gpu
+
+    public var title: String {
+        switch self {
+        case .temperature: "温度过高"
+        case .battery: "电量不足"
+        case .storage: "储存空间不足"
+        case .cpu: "CPU 占用过高"
+        case .gpu: "GPU 占用过高"
+        }
+    }
+
+    public var symbol: String {
+        switch self {
+        case .temperature: "thermometer.high"
+        case .battery: "battery.25percent"
+        case .storage: "internaldrive.fill"
+        case .cpu: "cpu.fill"
+        case .gpu: "square.stack.3d.up.fill"
+        }
+    }
+
+    public var unit: String { self == .temperature ? "°" : "%" }
+
+    /// Battery alerts when the reading falls to the limit; the others when it rises to it.
+    public var triggersBelow: Bool { self == .battery }
+}
+
+/// The Live Activity Island Menu raises in the Dynamic Island while something needs attention. It
+/// exists only for the duration of an alert. Shared by the app and the widget extension.
 @available(macOS 27.3, *)
 public struct MonitorActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
-        /// Whole-machine CPU load, 0...100.
-        public var cpu: Int
-        /// Hottest die temperature in °C, if readable.
-        public var temperature: Int?
-        /// Memory in use, 0...100.
-        public var memory: Int
-        /// Fastest fan in RPM; 0 when stopped.
-        public var fanSpeed: Int
+        public var kind: AlertKind
+        /// Current reading, in the kind's unit.
+        public var value: Int
+        /// The threshold it crossed.
+        public var limit: Int
+        /// How many other alerts are active behind this one.
+        public var others: Int
 
-        public init(cpu: Int, temperature: Int?, memory: Int, fanSpeed: Int) {
-            self.cpu = cpu
-            self.temperature = temperature
-            self.memory = memory
-            self.fanSpeed = fanSpeed
+        public init(kind: AlertKind, value: Int, limit: Int, others: Int) {
+            self.kind = kind
+            self.value = value
+            self.limit = limit
+            self.others = others
         }
     }
 

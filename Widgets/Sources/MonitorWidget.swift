@@ -9,81 +9,61 @@ struct IslandMenuWidgets: WidgetBundle {
     }
 }
 
-/// Island Menu's presence in the Dynamic Island: CPU and temperature when compact, a short summary
-/// and a way into the full panel when expanded.
+/// The alert Island Menu raises in the Dynamic Island: an icon and the offending reading when
+/// compact, a one-line explanation and a large way into the full panel when expanded.
 struct MonitorActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: MonitorActivityAttributes.self) { context in
             // Shown in the menu bar on displays without a Dynamic Island.
-            HStack(spacing: 18) {
-                Stat(title: "CPU", value: "\(context.state.cpu)%")
-                Stat(title: "温度", value: temperature(context.state))
-                Stat(title: "内存", value: "\(context.state.memory)%")
-                Spacer()
-                PanelLink()
-            }
-            .padding(14)
-            .widgetURL(IslandLink.openPanel)
+            AlertSummary(state: context.state)
+                .padding(14)
+                .widgetURL(IslandLink.openPanel)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    Stat(title: "CPU", value: "\(context.state.cpu)%")
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    Stat(title: "温度", value: temperature(context.state))
-                }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 18) {
-                        Stat(title: "内存", value: "\(context.state.memory)%")
-                        Stat(title: "风扇", value: context.state.fanSpeed > 0 ? "\(context.state.fanSpeed)" : "停转")
-                        Spacer()
-                        PanelLink()
-                    }
+                    AlertSummary(state: context.state)
                 }
             } compactLeading: {
-                Label("\(context.state.cpu)%", systemImage: "cpu")
-                    .font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                Image(systemName: context.state.kind.symbol).foregroundStyle(.orange)
             } compactTrailing: {
-                Text(temperature(context.state))
-                    .font(.system(size: 12, weight: .semibold)).monospacedDigit()
-                    .foregroundStyle(tint(context.state))
+                Text(reading(context.state)).font(.system(size: 13, weight: .semibold)).monospacedDigit().foregroundStyle(.orange)
             } minimal: {
-                Text("\(context.state.cpu)").font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                Image(systemName: context.state.kind.symbol).foregroundStyle(.orange)
             }
             .widgetURL(IslandLink.openPanel)
-            .keylineTint(tint(context.state))
-        }
-    }
-
-    private func temperature(_ state: MonitorActivityAttributes.ContentState) -> String {
-        state.temperature.map { "\($0)°" } ?? "—"
-    }
-
-    /// White when cool, amber then red as the chip heats up.
-    private func tint(_ state: MonitorActivityAttributes.ContentState) -> Color {
-        guard let temperature = state.temperature else { return .white }
-        return temperature >= 85 ? .red : (temperature >= 70 ? .orange : .white)
-    }
-}
-
-private struct Stat: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(value).font(.system(size: 15, weight: .semibold)).monospacedDigit()
-            Text(title).font(.system(size: 10)).foregroundStyle(.secondary)
+            .keylineTint(.orange)
         }
     }
 }
 
-private struct PanelLink: View {
+private func reading(_ state: MonitorActivityAttributes.ContentState) -> String {
+    "\(state.value)\(state.kind.unit)"
+}
+
+private struct AlertSummary: View {
+    let state: MonitorActivityAttributes.ContentState
+
     var body: some View {
-        Link(destination: IslandLink.openPanel) {
-            Text("打开面板").font(.system(size: 12, weight: .semibold))
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(Capsule().fill(.white.opacity(0.18)))
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: state.kind.symbol).font(.system(size: 26)).foregroundStyle(.orange).frame(width: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(state.kind.title).font(.system(size: 16, weight: .semibold))
+                    Text(detail).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Text(reading(state)).font(.system(size: 26, weight: .semibold)).monospacedDigit()
+            }
+            Link(destination: IslandLink.openPanel) {
+                Text("展开面板").font(.system(size: 15, weight: .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .background(Capsule().fill(.white.opacity(0.18)))
+            }
         }
+    }
+
+    private var detail: String {
+        let threshold = "提醒阈值 \(state.kind.triggersBelow ? "低于" : "高于") \(state.limit)\(state.kind.unit)"
+        return state.others > 0 ? "\(threshold) · 另有 \(state.others) 项提醒" : threshold
     }
 }

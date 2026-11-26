@@ -25,6 +25,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     /// Rotor speed on screen at full fan speed, in turns per second. Real speeds would strobe.
     private nonisolated static let maxTurnsPerSecond = 2.5
     private nonisolated static let minTurnsPerSecond = 0.25
+    private nonisolated static let flashInterval = 0.14
 
     let scene: SCNScene
     let camera = SCNNode()
@@ -69,6 +70,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         }
         logo = geometryNode("Logo")?.geometry?.firstMaterial
         logo?.lightingModel = .constant
+        let logoMaterial = logo
+        motion.withLock { $0.logo = logoMaterial }
         hinge = scene.rootNode.childNode(withName: "Lid_Hinge", recursively: true)
         hingeRest = hinge?.eulerAngles ?? SCNVector3Zero
         // The internals are only meant to be seen from underneath, through the bottom case.
@@ -192,8 +195,15 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             housing.emission.contents = NSColor(hue: 0.58 - 0.5 * level, saturation: 0.85, brightness: level > 0 ? 0.35 + 0.65 * level : 0, alpha: 1)
             if index < airflow.count { airflow[index].update(level: level, temperature: thermal.dieMean) }
         }
+        // While the logo is partying the render loop owns its colour.
+        guard !motion.withLock({ $0.isPartying }) else { return }
         logo?.emission.contents = NSColor(white: 0.15 + 0.85 * min(max(logoLevel, 0), 1), alpha: 1)
         logo?.diffuse.contents = logo?.emission.contents
+    }
+
+    /// Nightclub mode for the logo: hard colour changes on a beat, used while keep-awake is on.
+    func setPartying(_ partying: Bool) {
+        motion.withLock { $0.isPartying = partying }
     }
 
     /// Sets the turntable angle directly, in turns (0 = lid facing the camera).
@@ -210,6 +220,15 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             defer { motion.lastTime = time }
             guard let lastTime = motion.lastTime else { return }
             let elapsed = min(time - lastTime, 0.1)
+            if motion.isPartying, time - motion.lastFlash > Self.flashInterval {
+                motion.lastFlash = time
+                // Jump around the colour wheel rather than sweeping it, with the odd white strobe.
+                motion.flashHue = (motion.flashHue + CGFloat.random(in: 0.23...0.61)).truncatingRemainder(dividingBy: 1)
+                let strobe = Int.random(in: 0..<6) == 0
+                let color = NSColor(hue: motion.flashHue, saturation: strobe ? 0 : 1, brightness: 1, alpha: 1)
+                motion.logo?.emission.contents = color
+                motion.logo?.diffuse.contents = color
+            }
             if motion.isSpinning { motion.turntable?.eulerAngles.y += CGFloat(elapsed / Self.turnPeriod * 2 * .pi) }
             for (index, rotor) in motion.rotors.enumerated() where index < motion.fanLevels.count && motion.fanLevels[index] > 0 {
                 let turns = Self.minTurnsPerSecond + (Self.maxTurnsPerSecond - Self.minTurnsPerSecond) * motion.fanLevels[index]
@@ -225,4 +244,8 @@ private struct Motion: @unchecked Sendable {
     var rotors: [SCNNode] = []
     var fanLevels: [Double] = []
     var lastTime: TimeInterval?
+    var logo: SCNMaterial?
+    var isPartying = false
+    var lastFlash: TimeInterval = 0
+    var flashHue: CGFloat = 0
 }

@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         engine.flush()
         LogoLight.shared.restore()
+        KeepAwake.shared.stop()
         FanController.shared.shutdown()
     }
 

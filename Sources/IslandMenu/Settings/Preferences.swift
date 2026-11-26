@@ -16,6 +16,7 @@ final class Preferences: ObservableObject {
     static let shared = Preferences()
     static let temperatureRange = 40.0...100.0
     static let defaultChargeLimit = 85
+    static let defaultAwakeBrightness = 0.2
     static let defaultCurve = [
         FanCurvePoint(temperature: 45, level: 0),
         FanCurvePoint(temperature: 60, level: 0.25),
@@ -28,6 +29,7 @@ final class Preferences: ObservableObject {
         static let showPublicIP = "showPublicIP"
         static let chargeLimit = "chargeLimit"
         static let logoMode = "logoMode"
+        static let awakeBrightness = "awakeBrightness"
     }
 
     private let defaults = UserDefaults.standard
@@ -49,6 +51,11 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(chargeLimit, forKey: Key.chargeLimit) }
     }
 
+    /// Display brightness (0...1) held while keep-awake is on.
+    @Published var awakeBrightness: Double {
+        didSet { defaults.set(awakeBrightness, forKey: Key.awakeBrightness) }
+    }
+
     /// Stored so the chosen logo effect comes back after a relaunch.
     var logoMode: LogoMode {
         get { defaults.string(forKey: Key.logoMode).flatMap(LogoMode.init) ?? .auto }
@@ -61,6 +68,7 @@ final class Preferences: ObservableObject {
         fanCurve = stored.flatMap { $0.count >= 2 ? $0 : nil } ?? Self.defaultCurve
         showPublicIP = defaults.object(forKey: Key.showPublicIP) as? Bool ?? true
         chargeLimit = defaults.object(forKey: Key.chargeLimit) as? Int ?? Self.defaultChargeLimit
+        awakeBrightness = defaults.object(forKey: Key.awakeBrightness) as? Double ?? Self.defaultAwakeBrightness
     }
 
     /// Fan level the curve asks for at a temperature, interpolating between nodes.

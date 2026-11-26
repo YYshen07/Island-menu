@@ -7,6 +7,7 @@ struct MachineView: NSViewRepresentable {
     let thermal: ThermalSnapshot
     let fans: [FanSnapshot]
     let isActive: Bool
+    let isPartying: Bool
 
     func makeNSView(context: Context) -> SCNView {
         let view = SCNView(frame: .zero)
@@ -21,6 +22,7 @@ struct MachineView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: SCNView, context: Context) {
+        machine.setPartying(isPartying)
         machine.apply(thermal: thermal, fans: fans, logoLevel: 1)
         if isActive != view.isPlaying {
             machine.resetClock()
@@ -34,6 +36,7 @@ struct MachineSection: View {
     @EnvironmentObject private var state: IslandState
     /// Loaded when the card opens and dropped once it has closed, so SceneKit holds no memory in between.
     @State private var machine: MachineScene?
+    @ObservedObject private var keepAwake = KeepAwake.shared
     private static let modelHeight: CGFloat = 236
     private static let releaseDelay: TimeInterval = 0.6
 
@@ -42,7 +45,7 @@ struct MachineSection: View {
         VStack(spacing: 6) {
             ZStack {
                 if let machine {
-                    MachineView(machine: machine, thermal: thermal, fans: engine.snapshot.fans, isActive: state.isOpen)
+                    MachineView(machine: machine, thermal: thermal, fans: engine.snapshot.fans, isActive: state.isOpen, isPartying: keepAwake.isActive)
                         .overlay(Color.clear.contentShape(Rectangle()).onTapGesture { machine.setLidOpen(!machine.isLidOpen) })
                 }
             }

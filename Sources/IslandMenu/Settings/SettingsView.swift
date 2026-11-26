@@ -94,6 +94,18 @@ private struct GeneralSettings: View {
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
             }
             Section {
+                LabeledContent("防休眠时的屏幕亮度") {
+                    HStack {
+                        Slider(value: $preferences.awakeBrightness, in: 0...1)
+                            .frame(width: 180)
+                            .onChange(of: preferences.awakeBrightness) { _, _ in KeepAwake.shared.brightnessPreferenceChanged() }
+                        Text("\(Int((preferences.awakeBrightness * 100).rounded()))%").monospacedDigit().frame(width: 40, alignment: .trailing)
+                    }
+                }
+            } footer: {
+                Text("点卡片左上角的彩色苹果标开启防休眠：屏幕调到这个亮度并保持唤醒，再点一次恢复原来的亮度。")
+            }
+            Section {
                 Toggle("显示公共 IP", isOn: $preferences.showPublicIP)
             } footer: {
                 Text("开启后，卡片展开时会向 api.ipify.org 查询公共 IP，最多每 10 分钟一次。")

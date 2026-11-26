@@ -64,6 +64,11 @@ struct IslandRootView: View {
                     .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
             }
             .padding(.top, header)
+            .overlay(alignment: .topLeading) {
+                KeepAwakeButton()
+                    .padding(.top, (header - 28) / 2)
+                    .padding(.leading, 14)
+            }
             .overlay(alignment: .topTrailing) {
                 Button { state.showSettings() } label: {
                     Image(systemName: "gearshape.fill").font(.system(size: 13)).foregroundStyle(Theme.secondary)
@@ -90,5 +95,27 @@ struct IslandRootView: View {
             .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
         }
         .preferredColorScheme(.dark)
+    }
+}
+
+/// Rainbow Apple mark in the card's top-left corner; toggles keep-awake.
+private struct KeepAwakeButton: View {
+    @ObservedObject private var keepAwake = KeepAwake.shared
+    private static let rainbow = AngularGradient(colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .red], center: .center)
+
+    var body: some View {
+        Button { keepAwake.toggle() } label: {
+            Image(systemName: "apple.logo")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Self.rainbow)
+                .saturation(keepAwake.isActive ? 1 : 0.55)
+                .opacity(keepAwake.isActive ? 1 : 0.7)
+                .shadow(color: .white.opacity(keepAwake.isActive ? 0.7 : 0), radius: 6)
+                .frame(width: 28, height: 28)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(keepAwake.isActive ? "防休眠已开启" : "开启防休眠")
+        .animation(Theme.spring, value: keepAwake.isActive)
     }
 }

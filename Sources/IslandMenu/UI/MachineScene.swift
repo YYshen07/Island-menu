@@ -8,8 +8,6 @@ import SceneKit
 @MainActor
 final class MachineScene: NSObject, SCNSceneRendererDelegate {
     nonisolated static let resourceName = "macbook-pro-14"
-    private static let coolTemperature = 30.0
-    private static let hotTemperature = 90.0
     private static let bottomOpacity: CGFloat = 0.1
     private static let ghostOpacity: CGFloat = 0.25
     private static let cameraDistance: CGFloat = 0.72
@@ -30,7 +28,10 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
 
     let scene: SCNScene
     let camera = SCNNode()
-    private var heated: [String: SCNMaterial] = [:]
+    /// Sensed parts, as heat-map spots, keyed by node name.
+    private var spots: [String: HeatMapLayer.Spot] = [:]
+    private var heatMap: HeatMapLayer?
+    private var airflow: [AirflowEffect] = []
     private var housings: [SCNMaterial] = []
     private var logo: SCNMaterial?
     private var hinge: SCNNode?
@@ -60,10 +61,6 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     }
 
     private func bindNodes() {
-        let names = ["Die_Super", "Die_Perf", "Die_GPU", "SSD_0", "SSD_1"] + (0..<6).map { "Battery_Cell_\($0)" }
-        for name in names {
-            heated[name] = geometryNode(name)?.geometry?.firstMaterial
-        }
         for side in ["L", "R"] {
             if let rotor = scene.rootNode.childNode(withName: "Fan_\(side)_Rotor", recursively: true) {
                 motion.withLock { $0.rotors.append(rotor) }
@@ -112,6 +109,26 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         stand.addChildNode(turntable)
         scene.rootNode.addChildNode(stand)
         motion.withLock { $0.turntable = turntable }
+        addEffects(bodyLow: SCNVector3(low.x - centre.x, low.y - centre.y, low.z - centre.z), bodyHigh: SCNVector3(high.x - centre.x, high.y - centre.y, high.z - centre.z))
+    }
+
+    /// Heat map and airflow live in the body's own space, so they turn and tilt with it.
+    private func addEffects(bodyLow: SCNVector3, bodyHigh: SCNVector3) {
+        let names = ["Die_Super", "Die_Perf", "Die_GPU", "SSD_0", "SSD_1"] + (0..<6).map { "Battery_Cell_\($0)" }
+        for name in names {
+            guard let part = geometryNode(name) else { continue }
+            let (low, high) = part.boundingBox
+            let middle = part.convertPosition(SCNVector3((low.x + high.x) / 2, (low.y + high.y) / 2, (low.z + high.z) / 2), to: facing)
+            spots[name] = HeatMapLayer.Spot(centre: CGPoint(x: middle.x, y: middle.z), radius: max(high.x - low.x, high.z - low.z) / 2, temperature: nil)
+        }
+        let layer = HeatMapLayer(size: CGSize(width: bodyHigh.x - bodyLow.x, height: bodyHigh.z - bodyLow.z), bottom: bodyLow.y)
+        facing.addChildNode(layer.node)
+        heatMap = layer
+        for rotor in motion.withLock({ $0.rotors }) {
+            let effect = AirflowEffect(centre: rotor.convertPosition(SCNVector3Zero, to: facing))
+            facing.addChildNode(effect.node)
+            airflow.append(effect)
+        }
     }
 
     /// Opens or closes the lid, moving between the turning showcase pose and the desk pose.
@@ -164,25 +181,19 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     /// Pushes a sample onto the model.
     func apply(thermal: ThermalSnapshot, fans: [FanSnapshot], logoLevel: Double) {
         // The die sensors are not mapped to individual clusters, so all three regions share the mean.
-        for name in ["Die_Super", "Die_Perf", "Die_GPU"] { setHeat(name, thermal.dieMean) }
-        for name in ["SSD_0", "SSD_1"] { setHeat(name, thermal.ssd) }
-        for index in 0..<6 { setHeat("Battery_Cell_\(index)", thermal.battery) }
+        for name in ["Die_Super", "Die_Perf", "Die_GPU"] { spots[name]?.temperature = thermal.dieMean }
+        for name in ["SSD_0", "SSD_1"] { spots[name]?.temperature = thermal.ssd }
+        for index in 0..<6 { spots["Battery_Cell_\(index)"]?.temperature = thermal.battery }
+        heatMap?.update(spots.keys.sorted().compactMap { spots[$0] })
         let fanLevels = fans.map { $0.rpm > 0 ? $0.level : 0 }
         motion.withLock { $0.fanLevels = fanLevels }
         for (index, housing) in housings.enumerated() {
             let level = index < fanLevels.count ? fanLevels[index] : 0
             housing.emission.contents = NSColor(hue: 0.58 - 0.5 * level, saturation: 0.85, brightness: level > 0 ? 0.35 + 0.65 * level : 0, alpha: 1)
+            if index < airflow.count { airflow[index].update(level: level, temperature: thermal.dieMean) }
         }
         logo?.emission.contents = NSColor(white: 0.15 + 0.85 * min(max(logoLevel, 0), 1), alpha: 1)
         logo?.diffuse.contents = logo?.emission.contents
-    }
-
-    private func setHeat(_ name: String, _ temperature: Double?) {
-        guard let material = heated[name] else { return }
-        let range = Self.hotTemperature - Self.coolTemperature
-        let heat = min(max(((temperature ?? Self.coolTemperature) - Self.coolTemperature) / range, 0), 1)
-        // A thermal-camera ramp that is visible even when cool: blue, through green and amber, to red.
-        material.emission.contents = NSColor(hue: 0.62 * (1 - heat), saturation: 0.85, brightness: 0.45 + 0.55 * heat, alpha: 1)
     }
 
     /// Sets the turntable angle directly, in turns (0 = lid facing the camera).

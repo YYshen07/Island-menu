@@ -16,7 +16,9 @@ enum ModelPreview {
         let renderer = SCNRenderer(device: device, options: nil)
         renderer.scene = machine.scene
         renderer.pointOfView = machine.camera
-        let image = renderer.snapshot(atTime: 0, with: CGSize(width: 800, height: 472), antialiasingMode: .multisampling4X)
+        // Step the scene forward first so the particle systems have something to show.
+        for step in 0..<40 { renderer.update(atTime: Double(step) / 30) }
+        let image = renderer.snapshot(atTime: 40.0 / 30, with: CGSize(width: 800, height: 472), antialiasingMode: .multisampling4X)
         guard let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return false }
         return (try? png.write(to: URL(fileURLWithPath: output))) != nil
     }

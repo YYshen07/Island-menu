@@ -38,15 +38,21 @@ final class MetricsEngine: ObservableObject {
         queue.sync { samplers.activity.save() }
     }
 
-    func setLive(_ live: Bool) {
-        guard live != (fastTimer != nil) else { return }
-        guard live else {
-            fastTimer?.cancel()
-            fastTimer = nil
-            return
-        }
+    /// The fast loop runs while anything on screen needs it (the card, the settings window).
+    func retainLive() {
+        liveClients += 1
+        if liveClients == 1 { startFastLoop() }
+    }
+
+    func releaseLive() {
+        liveClients = max(liveClients - 1, 0)
+        guard liveClients == 0 else { return }
+        fastTimer?.cancel()
+        fastTimer = nil
+    }
+
+    private func startFastLoop() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        // Two quick samples first so rate-based metrics have a baseline, then once a second.
         timer.schedule(deadline: .now(), repeating: 1, leeway: .milliseconds(100))
         timer.setEventHandler { [samplers, weak self] in
             let snapshot = samplers.sample()
@@ -54,12 +60,17 @@ final class MetricsEngine: ObservableObject {
         }
         timer.resume()
         fastTimer = timer
+        guard Preferences.shared.showPublicIP else {
+            resolvedIP = nil
+            return
+        }
         Task { [weak self, publicIP] in
             let ip = await publicIP.resolve()
             self?.resolvedIP = ip
         }
     }
 
+    private var liveClients = 0
     private var resolvedIP: String?
 
     private func publish(_ fresh: Snapshot) {

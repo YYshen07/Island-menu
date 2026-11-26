@@ -10,6 +10,8 @@ final class IslandPanel: NSPanel {
 final class IslandState: ObservableObject {
     @Published var isOpen = false
     @Published var islandSize = CGSize(width: 120, height: 32)
+    /// Opens the settings window; set by the app delegate.
+    var showSettings: () -> Void = {}
     /// Height of the open card, reported by the view so clicks can be hit-tested against it.
     var cardHeight: CGFloat = 0
 }
@@ -26,7 +28,7 @@ final class IslandController {
     private static let escapeKey: UInt16 = 53
 
     private let engine: MetricsEngine
-    private let state = IslandState()
+    let state = IslandState()
     private var panel: IslandPanel?
     private var island: IslandGeometry?
     private var pendingShrink: DispatchWorkItem?
@@ -64,7 +66,7 @@ final class IslandController {
         guard open != state.isOpen, let panel else { return }
         pendingShrink?.cancel()
         if open {
-            engine.setLive(true)
+            engine.retainLive()
             layout(open: true)
             panel.makeKey()
             state.isOpen = true
@@ -72,7 +74,7 @@ final class IslandController {
             state.isOpen = false
             let shrink = DispatchWorkItem { [weak self] in
                 self?.layout(open: false)
-                self?.engine.setLive(false)
+                self?.engine.releaseLive()
             }
             pendingShrink = shrink
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.closeDuration, execute: shrink)

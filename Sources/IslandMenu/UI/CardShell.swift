@@ -64,6 +64,15 @@ struct IslandRootView: View {
                     .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
             }
             .padding(.top, header)
+            .overlay(alignment: .topTrailing) {
+                Button { state.showSettings() } label: {
+                    Image(systemName: "gearshape.fill").font(.system(size: 13)).foregroundStyle(Theme.secondary)
+                        .frame(width: 28, height: 28).contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, (header - 28) / 2)
+                .padding(.trailing, 14)
+            }
             .opacity(open ? 1 : 0)
             .allowsHitTesting(open)
             .frame(width: size.width, height: size.height, alignment: .top)

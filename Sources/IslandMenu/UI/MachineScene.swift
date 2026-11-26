@@ -12,7 +12,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private static let bottomOpacity: CGFloat = 0.1
     private static let ghostOpacity: CGFloat = 0.25
     private static let bodyThickness: CGFloat = 0.015
-    private static let cameraDistance: CGFloat = 0.62
+    private static let cameraDistance: CGFloat = 0.72
     private static let tilt: CGFloat = -0.2
     /// Seconds for one full turn of the machine.
     private nonisolated static let turnPeriod = 16.0
@@ -88,6 +88,11 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         upright.addChildNode(facing)
         let turntable = SCNNode()
         turntable.addChildNode(upright)
+        // Centre the model on the turning axis, whatever its own origin is.
+        let (low, high) = turntable.boundingBox
+        upright.position.x -= (low.x + high.x) / 2
+        upright.position.y -= (low.y + high.y) / 2
+        upright.position.z -= (low.z + high.z) / 2
         let stand = SCNNode()
         stand.eulerAngles = SCNVector3(Self.tilt, 0, 0)
         stand.addChildNode(turntable)

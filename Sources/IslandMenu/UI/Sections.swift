@@ -98,10 +98,12 @@ struct BatterySection: View {
 
 struct NetworkSection: View {
     @EnvironmentObject private var engine: MetricsEngine
+    @ObservedObject private var preferences = Preferences.shared
 
     var body: some View {
         let network = engine.snapshot.network
-        let rows = network.interfaces.map { ($0.name, $0.detail, true) } + [("公共 IP", network.publicIP ?? "—", false)]
+        let publicIP = preferences.showPublicIP ? [("公共 IP", network.publicIP ?? "—", false)] : []
+        let rows = network.interfaces.map { ($0.name, $0.detail, true) } + publicIP
         VStack(alignment: .leading, spacing: 8) {
             SectionHead(title: "网络") {
                 Text("↓").detail()

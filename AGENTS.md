@@ -44,6 +44,8 @@ No tests or linter are set up yet.
 - Fans: `FNum` = 2, `F{n}Ac`/`F{n}Mn`/`F{n}Mx`/`F{n}Tg` are `flt`, mode key is lowercase `F{n}md` (ui8). Writing needs root.
 - Logo light: hardware fades via `LEPWMFactorFadeDuration` + `DisplayLogicalState`; per-frame brightness
   writes cost about 12% CPU in corebrightnessd, fades about 2.6%.
+- Commit with `git commit -F <file>`: the system bash (3.2) cannot parse an apostrophe inside a heredoc
+  inside `$(...)`, and it runs the earlier commands in the same call before failing.
 - Test a logo mode without the UI: `defaults write dev.yan.islandmenu logoMode breathe` then relaunch;
   `refs/logoctl/.build/release/logoctl status --json` reads the live output.
 

@@ -11,7 +11,7 @@ mkdir -p "$APP/Contents/MacOS"
 cp .build/release/IslandMenu "$APP/Contents/MacOS/IslandMenu"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources"
-cp assets/model/macbook-pro-14-xray.usdz "$APP/Contents/Resources/"
+cp assets/model/macbook-pro-14.usdz "$APP/Contents/Resources/"
 IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)}"
 if [ -n "$IDENTITY" ]; then
     codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"

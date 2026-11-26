@@ -1,19 +1,27 @@
 import os
 import SceneKit
 
-/// The MacBook model and everything live data drives on it. The machine stands facing the camera
-/// and turns slowly: the lid side shows the glowing logo, the underside shows the internals through
-/// a see-through bottom case, where die / SSD / battery glow by temperature and the fans spin.
+/// The MacBook model and everything live data drives on it. Closed, the machine stands facing the
+/// camera and turns slowly: the lid side shows the glowing logo, the underside shows the internals
+/// through a see-through bottom case, where die / SSD / battery glow by temperature and the fans
+/// spin. Opened, it settles into a desk pose with the lid up.
 @MainActor
 final class MachineScene: NSObject, SCNSceneRendererDelegate {
-    nonisolated static let resourceName = "macbook-pro-14-xray"
+    nonisolated static let resourceName = "macbook-pro-14"
     private static let coolTemperature = 35.0
     private static let hotTemperature = 95.0
     private static let bottomOpacity: CGFloat = 0.1
     private static let ghostOpacity: CGFloat = 0.25
-    private static let bodyThickness: CGFloat = 0.015
     private static let cameraDistance: CGFloat = 0.72
     private static let tilt: CGFloat = -0.2
+    private static let lidOpenAngle: CGFloat = 108 * .pi / 180
+    private static let poseDuration = 0.9
+    /// Desk pose: how far the base is tipped toward the camera, how far it is turned, and how far
+    /// the camera backs off to fit the raised lid.
+    private static let deskPitch: CGFloat = 0.5
+    private static let deskYaw: CGFloat = -0.5
+    private static let deskCameraDistance: CGFloat = 0.95
+    private static let deskDrop: CGFloat = -0.09
     /// Seconds for one full turn of the machine.
     private nonisolated static let turnPeriod = 16.0
     /// Rotor speed on screen at full fan speed, in turns per second. Real speeds would strobe.
@@ -25,6 +33,12 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private var heated: [String: SCNMaterial] = [:]
     private var housings: [SCNMaterial] = []
     private var logo: SCNMaterial?
+    private var hinge: SCNNode?
+    private var hingeRest = SCNVector3Zero
+    private let upright = SCNNode()
+    private let facing = SCNNode()
+    private let stand = SCNNode()
+    private(set) var isLidOpen = false
     /// Everything SceneKit's render thread animates sits behind a lock.
     private let motion = OSAllocatedUnfairLock(initialState: Motion())
 
@@ -33,6 +47,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         self.scene = scene
         super.init()
         scene.background.contents = NSColor.clear
+        // The file carries a showcase animation; poses here are driven by the app instead.
+        scene.rootNode.enumerateHierarchy { node, _ in node.removeAllAnimations() }
         bindNodes()
         mountOnTurntable()
         addCameraAndLights()
@@ -56,6 +72,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         }
         logo = geometryNode("Logo")?.geometry?.firstMaterial
         logo?.lightingModel = .constant
+        hinge = scene.rootNode.childNode(withName: "Lid_Hinge", recursively: true)
+        hingeRest = hinge?.eulerAngles ?? SCNVector3Zero
         // The internals are only meant to be seen from underneath, through the bottom case.
         // The model stores opacity in `transparent`, so the lid is closed up and the bottom opened there.
         for material in geometryNode("Shell_Lid")?.geometry?.materials ?? [] {
@@ -78,26 +96,45 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     /// Re-parents the model so it stands upright facing the camera (lid forward, hinge down, which
     /// puts the logo the right way up) on a node that turns about the vertical axis.
     private func mountOnTurntable() {
-        let upright = SCNNode()
-        upright.position = SCNVector3(0, 0, Self.bodyThickness / 2)
         upright.eulerAngles = SCNVector3(CGFloat.pi / 2, 0, 0)
-        let facing = SCNNode()
         facing.eulerAngles = SCNVector3(0, CGFloat.pi, 0)
-        facing.position = SCNVector3(0, -Self.bodyThickness, 0)
         for child in scene.rootNode.childNodes { facing.addChildNode(child) }
+        // Centre the closed body on the node's origin, whatever the model's own origin is.
+        let (low, high) = facing.boundingBox
+        let centre = SCNVector3((low.x + high.x) / 2, (low.y + high.y) / 2, (low.z + high.z) / 2)
+        for child in facing.childNodes {
+            child.position = SCNVector3(child.position.x - centre.x, child.position.y - centre.y, child.position.z - centre.z)
+        }
         upright.addChildNode(facing)
         let turntable = SCNNode()
         turntable.addChildNode(upright)
-        // Centre the model on the turning axis, whatever its own origin is.
-        let (low, high) = turntable.boundingBox
-        upright.position.x -= (low.x + high.x) / 2
-        upright.position.y -= (low.y + high.y) / 2
-        upright.position.z -= (low.z + high.z) / 2
-        let stand = SCNNode()
         stand.eulerAngles = SCNVector3(Self.tilt, 0, 0)
         stand.addChildNode(turntable)
         scene.rootNode.addChildNode(stand)
         motion.withLock { $0.turntable = turntable }
+    }
+
+    /// Opens or closes the lid, moving between the turning showcase pose and the desk pose.
+    func setLidOpen(_ open: Bool, animated: Bool = true) {
+        isLidOpen = open
+        let turntable = motion.withLock { motion -> SCNNode? in
+            motion.isSpinning = !open
+            return motion.turntable
+        }
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = animated ? Self.poseDuration : 0
+        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        hinge?.eulerAngles = SCNVector3(hingeRest.x - (open ? Self.lidOpenAngle : 0), hingeRest.y, hingeRest.z)
+        upright.eulerAngles.x = open ? Self.deskPitch : CGFloat.pi / 2
+        facing.eulerAngles.y = open ? 0 : CGFloat.pi
+        stand.position.y = open ? Self.deskDrop : 0
+        camera.position.z = open ? Self.deskCameraDistance : Self.cameraDistance
+        if open, let turntable {
+            // Come to rest at the desk yaw by the shortest way round from wherever the spin was.
+            let turns = ((turntable.eulerAngles.y - Self.deskYaw) / (2 * .pi)).rounded()
+            turntable.eulerAngles.y = Self.deskYaw + turns * 2 * .pi
+        }
+        SCNTransaction.commit()
     }
 
     private func addCameraAndLights() {
@@ -162,7 +199,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             defer { motion.lastTime = time }
             guard let lastTime = motion.lastTime else { return }
             let elapsed = min(time - lastTime, 0.1)
-            motion.turntable?.eulerAngles.y += CGFloat(elapsed / Self.turnPeriod * 2 * .pi)
+            if motion.isSpinning { motion.turntable?.eulerAngles.y += CGFloat(elapsed / Self.turnPeriod * 2 * .pi) }
             for (index, rotor) in motion.rotors.enumerated() where index < motion.fanLevels.count && motion.fanLevels[index] > 0 {
                 let turns = Self.minTurnsPerSecond + (Self.maxTurnsPerSecond - Self.minTurnsPerSecond) * motion.fanLevels[index]
                 rotor.eulerAngles.y += CGFloat(turns * elapsed * 2 * .pi) * (index == 0 ? 1 : -1)
@@ -173,6 +210,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
 
 private struct Motion: @unchecked Sendable {
     var turntable: SCNNode?
+    var isSpinning = true
     var rotors: [SCNNode] = []
     var fanLevels: [Double] = []
     var lastTime: TimeInterval?

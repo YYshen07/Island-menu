@@ -43,6 +43,7 @@ struct MachineSection: View {
             ZStack {
                 if let machine {
                     MachineView(machine: machine, thermal: thermal, fans: engine.snapshot.fans, isActive: state.isOpen)
+                        .overlay(Color.clear.contentShape(Rectangle()).onTapGesture { machine.setLidOpen(!machine.isLidOpen) })
                 }
             }
             .frame(height: Self.modelHeight)

@@ -28,10 +28,10 @@ No tests or linter are set up yet.
 
 ## 3D model
 
-- `bundle.sh` copies `assets/model/macbook-pro-14-xray.usdz` into the app's `Contents/Resources`. A plain
+- `bundle.sh` copies `assets/model/macbook-pro-14.usdz` into the app's `Contents/Resources`. A plain
   `swift build` binary has no model and the machine section renders without it.
 - Check camera and lighting without launching the UI:
-  `.build/debug/IslandMenu --render-model assets/model/macbook-pro-14-xray.usdz /tmp/model.png`
+  `.build/debug/IslandMenu --render-model assets/model/macbook-pro-14.usdz /tmp/model.png`
 - `MachineScene` looks nodes up by the names in `docs/3d-model-brief.md`; renaming them breaks the bindings.
 - SceneKit calls the renderer delegate on its render thread, not the main actor.
 

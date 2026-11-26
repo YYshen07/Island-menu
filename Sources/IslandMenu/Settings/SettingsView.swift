@@ -5,12 +5,34 @@ import SwiftUI
 struct SettingsView: View {
     var body: some View {
         TabView {
-            FanSettings().tabItem { Label("风扇", systemImage: "fan") }
-            AlertSettings().tabItem { Label("提醒", systemImage: "bell.badge") }
-            BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }
             GeneralSettings().tabItem { Label("通用", systemImage: "gearshape") }
+            AlertSettings().tabItem { Label("提醒", systemImage: "bell.badge") }
+            FanSettings().tabItem { Label("风扇", systemImage: "fan") }
+            BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }
         }
-        .frame(width: 520, height: 400)
+        .frame(width: 520)
+    }
+}
+
+private extension View {
+    /// Shared look for every settings tab: grouped rows, as tall as its content, no inner scrolling.
+    func settingsPane() -> some View {
+        formStyle(.grouped).scrollDisabled(true).fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// One settings row: icon and title on the left, the control on the right.
+private struct SettingRow<Control: View>: View {
+    let title: String
+    let symbol: String
+    @ViewBuilder var control: Control
+
+    var body: some View {
+        LabeledContent {
+            control
+        } label: {
+            Label(title, systemImage: symbol)
+        }
     }
 }
 
@@ -49,7 +71,7 @@ private struct FanSettings: View {
                 Button("恢复默认曲线") { preferences.fanCurve = Preferences.defaultCurve }
             }
         }
-        .formStyle(.grouped)
+        .settingsPane()
     }
 }
 
@@ -78,7 +100,7 @@ private struct AlertSettings: View {
                 Text("读数持续超过阈值约 15 秒后，灵动岛右侧会出现提醒，回落后自动消失。储存空间超过阈值、未接电源时电量低于阈值会立即提醒。提醒出现的一瞬间，Island Menu 会短暂切到前台再切回，这是系统对发起提醒的要求。")
             }
         }
-        .formStyle(.grouped)
+        .settingsPane()
     }
 }
 
@@ -107,7 +129,7 @@ private struct BatterySettings: View {
                 Text("这台 Mac 的系统不支持充电上限。").foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
+        .settingsPane()
         .onAppear { limiter.refresh() }
     }
 }
@@ -119,30 +141,38 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Section {
-                Toggle("登录时启动", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
+            Section("启动") {
+                SettingRow(title: "登录时启动", symbol: "power") {
+                    Toggle("", isOn: $launchAtLogin).labelsHidden()
+                        .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
+                }
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.red) }
             }
             Section {
-                LabeledContent("防休眠时的屏幕亮度") {
-                    HStack {
+                SettingRow(title: "屏幕亮度", symbol: "sun.min") {
+                    HStack(spacing: 10) {
                         Slider(value: $preferences.awakeBrightness, in: 0...1)
                             .frame(width: 180)
                             .onChange(of: preferences.awakeBrightness) { _, _ in KeepAwake.shared.brightnessPreferenceChanged() }
                         Text("\(Int((preferences.awakeBrightness * 100).rounded()))%").monospacedDigit().frame(width: 40, alignment: .trailing)
                     }
                 }
+            } header: {
+                Text("防休眠")
             } footer: {
-                Text("点卡片左上角的彩色苹果标开启防休眠：屏幕调到这个亮度并保持唤醒，再点一次恢复原来的亮度。")
+                Text("点卡片左上角的苹果标开启：屏幕调到这个亮度并保持唤醒，再点一次恢复。")
             }
             Section {
-                Toggle("显示公共 IP", isOn: $preferences.showPublicIP)
+                SettingRow(title: "显示公共 IP", symbol: "network") {
+                    Toggle("", isOn: $preferences.showPublicIP).labelsHidden()
+                }
+            } header: {
+                Text("网络")
             } footer: {
-                Text("开启后，卡片展开时会向 api.ipify.org 查询公共 IP，最多每 10 分钟一次。")
+                Text("卡片展开时向 api.ipify.org 查询，最多每 10 分钟一次。")
             }
         }
-        .formStyle(.grouped)
+        .settingsPane()
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
@@ -176,7 +206,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     private func makeWindow() -> NSWindow {
         let root = SettingsView().environmentObject(Preferences.shared).environmentObject(engine)
-        let window = NSWindow(contentViewController: NSHostingController(rootView: root))
+        let host = NSHostingController(rootView: root)
+        // The window follows the selected tab's height.
+        host.sizingOptions = .preferredContentSize
+        let window = NSWindow(contentViewController: host)
         window.title = "Island Menu 设置"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false

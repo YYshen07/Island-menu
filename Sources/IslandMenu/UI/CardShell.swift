@@ -66,16 +66,16 @@ struct IslandRootView: View {
             .padding(.top, header)
             .overlay(alignment: .topLeading) {
                 KeepAwakeButton()
-                    .padding(.top, (header - 28) / 2)
+                    .padding(.top, (header - HeaderButton.side) / 2)
                     .padding(.leading, 14)
             }
             .overlay(alignment: .topTrailing) {
                 Button { state.showSettings() } label: {
-                    Image(systemName: "gearshape.fill").font(.system(size: 13)).foregroundStyle(Theme.secondary)
-                        .frame(width: 28, height: 28).contentShape(Circle())
+                    Image(systemName: "gearshape.fill").font(.system(size: HeaderButton.glyph)).foregroundStyle(Theme.secondary)
+                        .frame(width: HeaderButton.side, height: HeaderButton.side).contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .padding(.top, (header - 28) / 2)
+                .padding(.top, (header - HeaderButton.side) / 2)
                 .padding(.trailing, 14)
             }
             .opacity(open ? 1 : 0)
@@ -98,7 +98,13 @@ struct IslandRootView: View {
     }
 }
 
-/// Rainbow Apple mark in the card's top-left corner; toggles keep-awake.
+/// Size of the two buttons that flank the island in the card's header.
+private enum HeaderButton {
+    static let side: CGFloat = 34
+    static let glyph: CGFloat = 18
+}
+
+/// Apple mark in the card's top-left corner; toggles keep-awake and turns rainbow while it is on.
 private struct KeepAwakeButton: View {
     @ObservedObject private var keepAwake = KeepAwake.shared
     private static let rainbow = AngularGradient(colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .red], center: .center)
@@ -106,12 +112,11 @@ private struct KeepAwakeButton: View {
     var body: some View {
         Button { keepAwake.toggle() } label: {
             Image(systemName: "apple.logo")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Self.rainbow)
-                .saturation(keepAwake.isActive ? 1 : 0.55)
-                .opacity(keepAwake.isActive ? 1 : 0.7)
-                .shadow(color: .white.opacity(keepAwake.isActive ? 0.7 : 0), radius: 6)
-                .frame(width: 28, height: 28)
+                .font(.system(size: HeaderButton.glyph + 2, weight: .semibold))
+                // Plain grey until keep-awake is on; the colour is the "on" state.
+                .foregroundStyle(keepAwake.isActive ? AnyShapeStyle(Self.rainbow) : AnyShapeStyle(Theme.secondary))
+                .shadow(color: .white.opacity(keepAwake.isActive ? 0.6 : 0), radius: 6)
+                .frame(width: HeaderButton.side, height: HeaderButton.side)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)

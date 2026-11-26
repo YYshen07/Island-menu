@@ -19,6 +19,9 @@ No tests or linter are set up yet.
 - `Sources/IslandMenu/Island/` — panel over the Dynamic Island, open/close, geometry.
 - `Sources/IslandMenu/Metrics/` — samplers (one file per subsystem) and `MetricsEngine`.
 - `Sources/IslandMenu/UI/` — SwiftUI card and sections.
+- `Sources/IslandMenu/Control/` — things the app changes: logo light (CoreBrightness), charge limit (PowerUI), audio meter.
+- `Sources/IslandMenu/Settings/` — preferences store and the settings window.
+- `Sources/IslandMenu/Drop/` — AirDrop drop zone.
 - `mockup/` — static web design mockup with simulated data.
 - `docs/3d-model-brief.md` — spec for the 3D machine model (built separately in Blender, lives in `assets/model/`).
 - `refs/` — cloned reference repos (git-ignored): logoctl, LogoLight, DynamicNotchKit, stats, macmon.
@@ -31,6 +34,18 @@ No tests or linter are set up yet.
   `.build/debug/IslandMenu --render-model assets/model/macbook-pro-14-xray.usdz /tmp/model.png`
 - `MachineScene` looks nodes up by the names in `docs/3d-model-brief.md`; renaming them breaks the bindings.
 - SceneKit calls the renderer delegate on its render thread, not the main actor.
+
+## Hardware notes (Mac17,13, macOS 27.3)
+
+- No public or usable private API puts third-party content in the system island: ActivityKit is unavailable
+  on macOS and MenuBarAgent checks entitlements. The system island also draws above every window level.
+- Charge limit: `PowerUISmartChargeClient` (`setMCLLimit:error:`, limits 80/85/90/95/100) works without root.
+  The legacy SMC charge keys (CH0B, CH0C, CHTE) do not exist on this machine.
+- Fans: `FNum` = 2, `F{n}Ac`/`F{n}Mn`/`F{n}Mx`/`F{n}Tg` are `flt`, mode key is lowercase `F{n}md` (ui8). Writing needs root.
+- Logo light: hardware fades via `LEPWMFactorFadeDuration` + `DisplayLogicalState`; per-frame brightness
+  writes cost about 12% CPU in corebrightnessd, fades about 2.6%.
+- Test a logo mode without the UI: `defaults write dev.yan.islandmenu logoMode breathe` then relaunch;
+  `refs/logoctl/.build/release/logoctl status --json` reads the live output.
 
 ## Conventions
 

@@ -5,6 +5,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             FanSettings().tabItem { Label("风扇", systemImage: "fan") }
+            BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }
             GeneralSettings().tabItem { Label("通用", systemImage: "gearshape") }
         }
         .frame(width: 520, height: 400)
@@ -46,6 +47,36 @@ private struct FanSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+private struct BatterySettings: View {
+    @EnvironmentObject private var preferences: Preferences
+    @ObservedObject private var limiter = ChargeLimiter.shared
+
+    var body: some View {
+        Form {
+            if limiter.isSupported {
+                Section {
+                    Picker("充电上限", selection: $preferences.chargeLimit) {
+                        ForEach(limiter.availableLimits, id: \.self) { Text("\($0)%").tag($0) }
+                    }
+                    .onChange(of: preferences.chargeLimit) { _, limit in
+                        // Already limiting: move the live limit too, not just the stored preference.
+                        if limiter.mode != .auto { limiter.apply(limiter.mode, limit: limit) }
+                    }
+                } footer: {
+                    Text("「养护」模式下充到这个电量就停止。使用的是 macOS 自带的充电上限，由系统执行，Island Menu 退出后依然有效。")
+                }
+                if let error = limiter.lastError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
+            } else {
+                Text("这台 Mac 的系统不支持充电上限。").foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { limiter.refresh() }
     }
 }
 

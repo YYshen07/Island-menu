@@ -5,6 +5,8 @@ struct CardView: View {
         VStack(spacing: 0) {
             MachineSection()
             Hairline()
+            LogoLightSection()
+            Hairline()
             CPUSection()
             Hairline()
             HStack(spacing: 0) {

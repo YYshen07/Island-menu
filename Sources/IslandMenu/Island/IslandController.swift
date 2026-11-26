@@ -26,12 +26,15 @@ final class IslandController {
     private static let shadowMargin: CGFloat = 60
     private static let bottomMargin: CGFloat = 12
     private static let escapeKey: UInt16 = 53
+    private static let toggleDebounce: TimeInterval = 0.25
 
     private let engine: MetricsEngine
     let state = IslandState()
     private var panel: IslandPanel?
     private var island: IslandGeometry?
     private var pendingShrink: DispatchWorkItem?
+    private lazy var clickTap = IslandClickTap { [weak self] in self?.toggle() }
+    private var lastToggle = Date.distantPast
 
     init(engine: MetricsEngine) {
         self.engine = engine
@@ -57,6 +60,7 @@ final class IslandController {
         layout()
         panel.orderFrontRegardless()
         installMonitors()
+        clickTap.start(prompting: true)
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.layout() }
         }
@@ -67,6 +71,7 @@ final class IslandController {
         pendingShrink?.cancel()
         if open {
             engine.retainLive()
+            _ = interceptsIslandClicks
             layout(open: true)
             panel.makeKey()
             state.isOpen = true
@@ -85,6 +90,7 @@ final class IslandController {
         guard let panel, let screen = NSScreen.builtIn ?? NSScreen.main else { return }
         let island = IslandGeometry(screen: screen)
         self.island = island
+        clickTap.update(island: island, screenFrame: screen.frame)
         state.islandSize = island.size
         guard open ?? state.isOpen else { return panel.setFrame(island.closedFrame, display: true) }
         let width = Self.cardWidth + Self.shadowMargin * 2
@@ -93,7 +99,16 @@ final class IslandController {
     }
 
     func toggle() {
+        // A click can arrive through more than one path (event tap, monitors); count it once.
+        guard Date().timeIntervalSince(lastToggle) > Self.toggleDebounce else { return }
+        lastToggle = Date()
         setOpen(!state.isOpen)
+    }
+
+    /// Whether island clicks are being kept from the system island. Retries the tap, since the
+    /// Accessibility permission may have been granted after launch.
+    var interceptsIslandClicks: Bool {
+        clickTap.start(prompting: false)
     }
 
     /// Clicks are handled at the event level rather than by SwiftUI gestures, so they work whether

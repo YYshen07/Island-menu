@@ -6,7 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var island: IslandController?
     private var statusItem: NSStatusItem?
     private lazy var settings = SettingsWindowController(engine: engine)
-    private var toggleSignal: DispatchSourceSignal?
+    private var signalSources: [DispatchSourceSignal] = []
     private let airDrop = AirDropZone()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -18,12 +18,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installStatusItem()
         installToggleSignal()
         airDrop.install()
+        LogoLight.shared.setMode(Preferences.shared.logoMode)
         if CommandLine.arguments.contains("--open") { controller.setOpen(true) }
         if CommandLine.arguments.contains("--settings") { openSettings() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         engine.flush()
+        LogoLight.shared.restore()
     }
 
     /// Menu bar icon: a second way to open the card, and the only way to quit.
@@ -40,14 +42,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// `kill -USR1 <pid>` toggles the card, so it can be driven from scripts without synthetic clicks.
+    /// SIGTERM and SIGINT go through the normal quit path, so the logo light is handed back to macOS.
     private func installToggleSignal() {
-        signal(SIGUSR1, SIG_IGN)
-        let source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
-        source.setEventHandler { [weak self] in
-            MainActor.assumeIsolated { self?.island?.toggle() }
+        let handlers: [(Int32, @MainActor () -> Void)] = [
+            (SIGUSR1, { [weak self] in self?.island?.toggle() }),
+            (SIGTERM, { NSApp.terminate(nil) }),
+            (SIGINT, { NSApp.terminate(nil) }),
+        ]
+        for (number, handler) in handlers {
+            signal(number, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+            source.setEventHandler { MainActor.assumeIsolated { handler() } }
+            source.resume()
+            signalSources.append(source)
         }
-        source.resume()
-        toggleSignal = source
     }
 
     @objc private func toggleCard() {

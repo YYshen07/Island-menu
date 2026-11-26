@@ -73,6 +73,9 @@ struct GPUSection: View {
 
 struct BatterySection: View {
     @EnvironmentObject private var engine: MetricsEngine
+    @EnvironmentObject private var state: IslandState
+    @ObservedObject private var limiter = ChargeLimiter.shared
+    @ObservedObject private var preferences = Preferences.shared
 
     var body: some View {
         let battery = engine.snapshot.battery
@@ -83,8 +86,28 @@ struct BatterySection: View {
                     Text("\(battery.percent)%").value()
                 }
                 SegmentBar(segments: [(Double(battery.percent) / 100, battery.external ? Theme.live : Theme.primary)])
+                if limiter.isSupported {
+                    PillPicker(options: [(BatteryMode.auto, "自动"), (.care, "养护"), (.full, "满充")], selection: modeBinding, height: 26)
+                        .padding(.top, 4)
+                    Text(limiter.lastError ?? modeNote).label()
+                }
             }
             .section()
+            .onChange(of: state.isOpen, initial: true) { _, open in
+                if open { limiter.refresh() }
+            }
+        }
+    }
+
+    private var modeBinding: Binding<BatteryMode> {
+        Binding(get: { limiter.mode }, set: { limiter.apply($0, limit: preferences.chargeLimit) })
+    }
+
+    private var modeNote: String {
+        switch limiter.mode {
+        case .auto: "由 macOS 管理充电"
+        case .care: "充到 \(preferences.chargeLimit)% 停止"
+        case .full: "这一次充到 100%，之后回到 \(preferences.chargeLimit)%"
         }
     }
 
@@ -93,6 +116,33 @@ struct BatterySection: View {
         if let health = battery.health { parts.append("健康度 \(health)%") }
         if let watts = battery.adapterWatts { parts.append("\(watts) W 适配器") }
         return parts.joined(separator: " · ")
+    }
+}
+
+struct LogoLightSection: View {
+    @ObservedObject private var light = LogoLight.shared
+    private static let notes: [LogoMode: String] = [
+        .auto: "跟随 macOS 默认行为",
+        .breathe: "缓慢呼吸，4.5 秒一次",
+        .audio: "随系统声音（含提示音）律动",
+    ]
+
+    var body: some View {
+        if light.isSupported {
+            VStack(alignment: .leading, spacing: 8) {
+                SectionHead(title: "信仰灯") { EmptyView() }
+                PillPicker(options: [(LogoMode.auto, "自动"), (.breathe, "呼吸"), (.audio, "音跃")], selection: modeBinding, height: 26)
+                Text(light.lastError ?? Self.notes[light.mode] ?? "").label().fixedSize(horizontal: false, vertical: true)
+            }
+            .section()
+        }
+    }
+
+    private var modeBinding: Binding<LogoMode> {
+        Binding(get: { light.mode }, set: { mode in
+            light.setMode(mode)
+            Preferences.shared.logoMode = light.mode
+        })
     }
 }
 

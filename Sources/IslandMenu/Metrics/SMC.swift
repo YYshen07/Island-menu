@@ -71,6 +71,13 @@ final class SMC {
         return info.dataSize == 1 ? Double(bytes[0]) : nil
     }
 
+    /// Type code and raw bytes of a key, for keys that are not plain numbers.
+    func raw(_ key: String) -> (type: String, bytes: [UInt8])? {
+        guard let (info, bytes) = read(key) else { return nil }
+        let type = String(bytes: withUnsafeBytes(of: info.dataType.bigEndian) { Array($0) }, encoding: .ascii) ?? "?"
+        return (type, bytes)
+    }
+
     private func read(_ key: String) -> (SMCKeyData.KeyInfo, [UInt8])? {
         var input = SMCKeyData()
         input.key = Self.code(key)

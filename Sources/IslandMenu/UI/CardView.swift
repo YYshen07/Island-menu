@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct CardView: View {
+    @ObservedObject private var preferences = Preferences.shared
+
     var body: some View {
         VStack(spacing: 0) {
             MachineSection()
@@ -28,6 +30,8 @@ struct CardView: View {
             Hairline()
             ActivitySection()
         }
+        // Tints are read when a section draws, so switching appearance rebuilds the card.
+        .id(preferences.colorful)
     }
 }
 
@@ -102,6 +106,7 @@ struct CPUSection: View {
 
     var body: some View {
         let cpu = engine.snapshot.cpu
+        let tint = Module.cpu.tint
         VStack(alignment: .leading, spacing: 8) {
             SectionHead(title: "CPU") {
                 Text("用户 \(Format.percent(cpu.user)) · 系统 \(Format.percent(cpu.system)) · 负载 \(String(format: "%.2f", cpu.load))").detail()
@@ -117,7 +122,7 @@ struct CPUSection: View {
                     let filled = slot.divided(atDistance: size.height * CGFloat(load), from: .maxYEdge).slice
                     var clipped = context
                     clipped.clip(to: Path(roundedRect: slot, cornerRadius: 3))
-                    clipped.fill(Path(filled), with: .color(load > 0.85 ? Theme.heat : Theme.primary))
+                    clipped.fill(Path(filled), with: .color(load > 0.85 ? Theme.heat : tint))
                 }
             }
             .frame(height: 40)

@@ -48,6 +48,7 @@ final class Preferences: ObservableObject {
         static let logoMode = "logoMode"
         static let awakeBrightness = "awakeBrightness"
         static let alertRules = "alertRules"
+        static let colorful = "colorful"
     }
 
     private let defaults = UserDefaults.standard
@@ -67,6 +68,11 @@ final class Preferences: ObservableObject {
     /// Where 养护 mode stops charging, in percent.
     @Published var chargeLimit: Int {
         didSet { defaults.set(chargeLimit, forKey: Key.chargeLimit) }
+    }
+
+    /// Whether modules use their accent colours; off is the all-white look.
+    @Published var colorful: Bool {
+        didSet { defaults.set(colorful, forKey: Key.colorful) }
     }
 
     /// Display brightness (0...1) held while keep-awake is on.
@@ -102,6 +108,7 @@ final class Preferences: ObservableObject {
         showPublicIP = defaults.object(forKey: Key.showPublicIP) as? Bool ?? true
         chargeLimit = defaults.object(forKey: Key.chargeLimit) as? Int ?? Self.defaultChargeLimit
         awakeBrightness = defaults.object(forKey: Key.awakeBrightness) as? Double ?? Self.defaultAwakeBrightness
+        colorful = defaults.object(forKey: Key.colorful) as? Bool ?? true
         let storedRules = defaults.data(forKey: Key.alertRules).flatMap { try? JSONDecoder().decode([String: AlertRule].self, from: $0) } ?? [:]
         alertRules = Self.defaultAlertRules.merging(storedRules.compactMap { key, rule in AlertKind(rawValue: key).map { ($0, rule) } }) { _, stored in stored }
     }

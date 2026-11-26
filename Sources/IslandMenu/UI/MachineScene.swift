@@ -2,9 +2,10 @@ import os
 import SceneKit
 
 /// The MacBook model and everything live data drives on it. Closed, the machine stands facing the
-/// camera and turns slowly: the lid side shows the glowing logo, the underside shows the internals
+/// camera showing one face: the lid with the glowing logo, or the underside with the internals
 /// through a see-through bottom case, where die / SSD / battery glow by temperature and the fans
-/// spin. Opened, it settles into a desk pose with the lid up.
+/// spin. A click turns it over; a double click settles it into a desk pose with the lid up.
+/// It is drawn on demand: frames are produced only while something is actually moving.
 @MainActor
 final class MachineScene: NSObject, SCNSceneRendererDelegate {
     nonisolated static let resourceName = "macbook-pro-14"
@@ -14,6 +15,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private static let tilt: CGFloat = -0.2
     private static let lidOpenAngle: CGFloat = 108 * .pi / 180
     private static let poseDuration = 0.9
+    /// Extra time frames keep coming after a pose change, so the last frame is the settled one.
+    private static let settleMargin = 0.15
     /// Desk pose: how far the base is tipped toward the camera, how far it is turned, and how far
     /// the camera backs off to fit the raised lid.
     private static let deskPitch: CGFloat = 0.5
@@ -21,7 +24,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private static let deskCameraDistance: CGFloat = 0.95
     private static let deskDrop: CGFloat = -0.09
     /// Seconds for one full turn of the machine.
-    private nonisolated static let turnPeriod = 16.0
+    private static let flipDuration = 0.7
     /// Rotor speed on screen at full fan speed, in turns per second. Real speeds would strobe.
     private nonisolated static let maxTurnsPerSecond = 2.5
     private nonisolated static let minTurnsPerSecond = 0.25
@@ -41,6 +44,16 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private let facing = SCNNode()
     private let stand = SCNNode()
     private(set) var isLidOpen = false
+    /// Which face is toward the camera while closed; picked at random each time the card opens.
+    private(set) var showsUnderside = Bool.random()
+    private weak var view: SCNView?
+    private var isCardOpen = false
+    private var isPartying = false
+    private var transitionEnd = Date.distantPast
+    /// Starts as a value no reading can equal, so the first sample always gets applied.
+    private var shownFanSteps: [Int] = [-1]
+    private var shownLogoStep = -1
+    private var needsStillFrame = true
     /// Everything SceneKit's render thread animates sits behind a lock.
     private let motion = OSAllocatedUnfairLock(initialState: Motion())
 
@@ -54,6 +67,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         bindNodes()
         mountOnTurntable()
         addCameraAndLights()
+        let startAngle: CGFloat = showsUnderside ? .pi : 0
+        motion.withLock { $0.turntable?.eulerAngles.y = startAngle }
     }
 
     private func geometryNode(_ name: String) -> SCNNode? {
@@ -135,27 +150,76 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         }
     }
 
-    /// Opens or closes the lid, moving between the turning showcase pose and the desk pose.
+    // MARK: - Poses
+
+    /// Turns the closed machine over to its other face.
+    func flip() {
+        guard !isLidOpen else { return setLidOpen(false) }
+        showsUnderside.toggle()
+        let turntable = motion.withLock { $0.turntable }
+        animate(Self.flipDuration) {
+            turntable?.eulerAngles.y += CGFloat.pi
+        }
+    }
+
+    /// Opens or closes the lid, moving between the standing pose and the desk pose.
     func setLidOpen(_ open: Bool, animated: Bool = true) {
         isLidOpen = open
-        let turntable = motion.withLock { motion -> SCNNode? in
-            motion.isSpinning = !open
-            return motion.turntable
+        let turntable = motion.withLock { $0.turntable }
+        animate(animated ? Self.poseDuration : 0) {
+            hinge?.eulerAngles = SCNVector3(hingeRest.x - (open ? Self.lidOpenAngle : 0), hingeRest.y, hingeRest.z)
+            upright.eulerAngles.x = open ? Self.deskPitch : CGFloat.pi / 2
+            facing.eulerAngles.y = open ? 0 : CGFloat.pi
+            stand.position.y = open ? Self.deskDrop : 0
+            camera.position.z = open ? Self.deskCameraDistance : Self.cameraDistance
+            guard let turntable else { return }
+            // Go to the desk yaw, or back to the face that was showing, by the shortest way round.
+            let target = open ? Self.deskYaw : (showsUnderside ? CGFloat.pi : 0)
+            let turns = ((turntable.eulerAngles.y - target) / (2 * .pi)).rounded()
+            turntable.eulerAngles.y = target + turns * 2 * .pi
         }
+    }
+
+    private func animate(_ duration: TimeInterval, _ changes: () -> Void) {
         SCNTransaction.begin()
-        SCNTransaction.animationDuration = animated ? Self.poseDuration : 0
+        SCNTransaction.animationDuration = duration
         SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        hinge?.eulerAngles = SCNVector3(hingeRest.x - (open ? Self.lidOpenAngle : 0), hingeRest.y, hingeRest.z)
-        upright.eulerAngles.x = open ? Self.deskPitch : CGFloat.pi / 2
-        facing.eulerAngles.y = open ? 0 : CGFloat.pi
-        stand.position.y = open ? Self.deskDrop : 0
-        camera.position.z = open ? Self.deskCameraDistance : Self.cameraDistance
-        if open, let turntable {
-            // Come to rest at the desk yaw by the shortest way round from wherever the spin was.
-            let turns = ((turntable.eulerAngles.y - Self.deskYaw) / (2 * .pi)).rounded()
-            turntable.eulerAngles.y = Self.deskYaw + turns * 2 * .pi
-        }
+        changes()
         SCNTransaction.commit()
+        transitionEnd = Date().addingTimeInterval(duration + Self.settleMargin)
+        needsStillFrame = true
+        updatePlayback()
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + Self.settleMargin + 0.05) { [weak self] in
+            self?.updatePlayback()
+        }
+    }
+
+    // MARK: - On-demand rendering
+
+    func attach(_ view: SCNView) {
+        self.view = view
+    }
+
+    func setCardOpen(_ open: Bool) {
+        isCardOpen = open
+        updatePlayback()
+    }
+
+    /// Frames are needed only during a pose change, while the fans are visibly turning, or while
+    /// the logo is flashing. Otherwise the view holds its last frame and costs nothing.
+    private func updatePlayback() {
+        guard let view else { return }
+        let fansTurning = motion.withLock { $0.fanLevels.contains { $0 > 0 } }
+        let fansVisible = fansTurning && showsUnderside && !isLidOpen
+        let logoVisible = isPartying && (isLidOpen || !showsUnderside)
+        let play = isCardOpen && (Date() < transitionEnd || fansVisible || logoVisible)
+        if play != view.isPlaying {
+            motion.withLock { $0.lastTime = nil }
+            view.isPlaying = play
+        }
+        // A paused view redraws once when something it shows has changed, and not otherwise.
+        if !play, needsStillFrame { view.needsDisplay = true }
+        needsStillFrame = false
     }
 
     private func addCameraAndLights() {
@@ -188,32 +252,48 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         for name in ["Die_Super", "Die_Perf", "Die_GPU"] { spots[name]?.temperature = thermal.dieMean }
         for name in ["SSD_0", "SSD_1"] { spots[name]?.temperature = thermal.ssd }
         for index in 0..<6 { spots["Battery_Cell_\(index)"]?.temperature = thermal.battery }
-        heatMap?.update(spots.keys.sorted().compactMap { spots[$0] })
+        let heatChanged = heatMap?.update(spots.keys.sorted().compactMap { spots[$0] }) ?? false
         let fanLevels = fans.map { $0.rpm > 0 ? $0.level : 0 }
+        // The underside is the only face where these readings show; a still frame is redrawn only
+        // when one of them has visibly moved.
+        let fansChanged = fanLevels.map { Int($0 * 20) } != shownFanSteps
+        shownFanSteps = fanLevels.map { Int($0 * 20) }
+        if (heatChanged || fansChanged) && showsUnderside { needsStillFrame = true }
         motion.withLock { $0.fanLevels = fanLevels }
-        for (index, housing) in housings.enumerated() {
-            let level = index < fanLevels.count ? fanLevels[index] : 0
-            housing.emission.contents = NSColor(hue: 0.58 - 0.5 * level, saturation: 0.85, brightness: level > 0 ? 0.35 + 0.65 * level : 0, alpha: 1)
-            if index < airflow.count { airflow[index].update(level: level, temperature: thermal.dieMean) }
+        // Writing a material or particle property marks the scene dirty and makes SceneKit redraw,
+        // even when the value is the same, so nothing is written unless it actually changed.
+        if fansChanged {
+            for (index, housing) in housings.enumerated() {
+                let level = index < fanLevels.count ? fanLevels[index] : 0
+                housing.emission.contents = NSColor(hue: 0.58 - 0.5 * level, saturation: 0.85, brightness: level > 0 ? 0.35 + 0.65 * level : 0, alpha: 1)
+                if index < airflow.count { airflow[index].update(level: level, temperature: thermal.dieMean) }
+            }
         }
         // While the logo is partying the render loop owns its colour.
-        guard !motion.withLock({ $0.isPartying }) else { return }
-        logo?.emission.contents = NSColor(white: 0.15 + 0.85 * min(max(logoLevel, 0), 1), alpha: 1)
-        logo?.diffuse.contents = logo?.emission.contents
+        let logoStep = Int(min(max(logoLevel, 0), 1) * 100)
+        if !isPartying, logoStep != shownLogoStep {
+            shownLogoStep = logoStep
+            logo?.emission.contents = NSColor(white: 0.15 + 0.85 * CGFloat(logoStep) / 100, alpha: 1)
+            logo?.diffuse.contents = logo?.emission.contents
+            if !showsUnderside { needsStillFrame = true }
+        }
+        updatePlayback()
     }
 
     /// Nightclub mode for the logo: hard colour changes on a beat, used while keep-awake is on.
     func setPartying(_ partying: Bool) {
+        if partying != isPartying {
+            needsStillFrame = true
+            // Force the steady logo colour back in once the party is over.
+            shownLogoStep = -1
+        }
+        isPartying = partying
         motion.withLock { $0.isPartying = partying }
     }
 
     /// Sets the turntable angle directly, in turns (0 = lid facing the camera).
     func setTurn(_ turns: Double) {
         motion.withLock { $0.turntable?.eulerAngles.y = CGFloat(turns * 2 * .pi) }
-    }
-
-    func resetClock() {
-        motion.withLock { $0.lastTime = nil }
     }
 
     nonisolated func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
@@ -230,7 +310,6 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
                 motion.logo?.emission.contents = color
                 motion.logo?.diffuse.contents = color
             }
-            if motion.isSpinning { motion.turntable?.eulerAngles.y += CGFloat(elapsed / Self.turnPeriod * 2 * .pi) }
             for (index, rotor) in motion.rotors.enumerated() where index < motion.fanLevels.count && motion.fanLevels[index] > 0 {
                 let turns = Self.minTurnsPerSecond + (Self.maxTurnsPerSecond - Self.minTurnsPerSecond) * motion.fanLevels[index]
                 rotor.eulerAngles.y += CGFloat(turns * elapsed * 2 * .pi) * (index == 0 ? 1 : -1)
@@ -241,7 +320,6 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
 
 private struct Motion: @unchecked Sendable {
     var turntable: SCNNode?
-    var isSpinning = true
     var rotors: [SCNNode] = []
     var fanLevels: [Double] = []
     var lastTime: TimeInterval?

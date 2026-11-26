@@ -7,15 +7,16 @@ struct MemorySection: View {
     var body: some View {
         let memory = engine.snapshot.memory
         let total = Double(max(memory.total, 1))
+        let tint = Module.memory.tint
         VStack(alignment: .leading, spacing: 8) {
             SectionHead(title: "内存") {
                 Text(Format.gigabytes(memory.used)).value()
                 Text("/ \(Format.gigabytes(memory.total, digits: 0)) GB").detail()
             }
             SegmentBar(segments: [
-                (Double(memory.app) / total, Theme.primary),
-                (Double(memory.wired) / total, .white.opacity(0.5)),
-                (Double(memory.compressed) / total, .white.opacity(0.26)),
+                (Double(memory.app) / total, tint),
+                (Double(memory.wired) / total, tint.opacity(0.55)),
+                (Double(memory.compressed) / total, tint.opacity(0.3)),
             ])
             Text("压力 \(Self.pressureNames[memory.pressure] ?? "正常") · 交换 \(Format.gigabytes(memory.swapUsed)) GB").label()
         }
@@ -35,11 +36,11 @@ struct StorageSection: View {
                 Text(Format.decimalGigabytes(disk.used)).value()
                 Text("/ \(Format.decimalGigabytes(disk.total)) GB").detail()
             }
-            SegmentBar(segments: [(Double(disk.used) / Double(max(disk.total, 1)), Theme.primary)])
+            SegmentBar(segments: [(Double(disk.used) / Double(max(disk.total, 1)), Module.storage.tint)])
             // A trend line only means something once the usage has actually moved.
             if trend.count > 1, let low = trend.min(), let high = trend.max(), high > low {
                 // Stretch the span between the lowest and highest day over the chart, off a small floor.
-                Sparkline(values: trend.map { 0.15 + 0.85 * ($0 - low) / (high - low) }, ceiling: 1).frame(height: 18)
+                Sparkline(values: trend.map { 0.15 + 0.85 * ($0 - low) / (high - low) }, ceiling: 1, color: Module.storage.tint).frame(height: 18)
             }
             Text("读 \(Format.rate(disk.readRate)) · 写 \(Format.rate(disk.writeRate))").label()
         }
@@ -54,7 +55,7 @@ struct GPUSection: View {
         let gpu = engine.snapshot.gpu
         VStack(alignment: .leading, spacing: 8) {
             SectionHead(title: "GPU") { Text(Format.percent(gpu.usage)).value() }
-            Sparkline(values: engine.gpuHistory.values, ceiling: 1).frame(height: 26)
+            Sparkline(values: engine.gpuHistory.values, ceiling: 1, color: Module.gpu.tint).frame(height: 26)
             HStack(spacing: 0) {
                 stat(Format.percent(gpu.memoryFraction), "显存")
                 stat(Format.gigabytes(gpu.memoryUsed) + " GB", "显存占用")
@@ -215,7 +216,7 @@ struct NetworkSection: View {
                 Text("↑").detail().padding(.leading, 8)
                 Text(Format.rate(network.up)).value()
             }
-            Sparkline(values: engine.downHistory.values, mirrored: engine.upHistory.values).frame(height: 44)
+            Sparkline(values: engine.downHistory.values, mirrored: engine.upHistory.values, color: Module.network.tint).frame(height: 44)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 24), GridItem(.flexible())], spacing: 6) {
                 ForEach(rows, id: \.0) { row in
                     HStack(spacing: 6) {
@@ -250,7 +251,7 @@ struct ProcessSection: View {
                     HStack(spacing: 10) {
                         Text(row.name).font(.system(size: 12)).foregroundStyle(Theme.primary).lineLimit(1)
                         Spacer(minLength: 8)
-                        SegmentBar(segments: [((byMemory ? Double(row.memory) : row.cpu) / max(peak, 0.0001), Theme.secondary)])
+                        SegmentBar(segments: [((byMemory ? Double(row.memory) : row.cpu) / max(peak, 0.0001), (byMemory ? Module.memory : Module.cpu).tint.opacity(0.75))])
                             .frame(width: 70, height: 3)
                         Text(byMemory ? Format.gigabytes(row.memory) + " GB" : String(format: "%.1f%%", row.cpu * 100))
                             .detail().frame(width: 64, alignment: .trailing)

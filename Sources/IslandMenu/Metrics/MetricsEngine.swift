@@ -113,8 +113,8 @@ final class Samplers: @unchecked Sendable {
         snapshot.network = network.sample()
         snapshot.battery = battery.sample()
         snapshot.gpu = gpu.sample()
-        // Temperatures drift slowly and the sensors are slow to read, so they refresh at half rate.
-        if tick % 2 == 1 { lastThermal = thermal.sample() }
+        // Temperatures drift slowly and the sensors are slow to read, so they refresh every third second.
+        if tick % 3 == 1 { lastThermal = thermal.sample() }
         snapshot.thermal = lastThermal
         snapshot.gpu.temperature = snapshot.thermal.dieMean
         snapshot.fans = fans.sample()

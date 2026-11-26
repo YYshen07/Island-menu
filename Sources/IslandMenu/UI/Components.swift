@@ -39,6 +39,7 @@ struct Sparkline: View {
     let values: [Double]
     var mirrored: [Double] = []
     var ceiling: Double?
+    var color: Color = .white
 
     var body: some View {
         Canvas { context, size in
@@ -59,7 +60,7 @@ struct Sparkline: View {
         }
         path.addLine(to: CGPoint(x: size.width, y: baseline))
         path.closeSubpath()
-        context.fill(path, with: .color(.white.opacity(opacity * (mirrored.isEmpty ? 0.3 : 1))))
+        context.fill(path, with: .color(color.opacity(opacity * (mirrored.isEmpty ? 0.45 : 1))))
     }
 }
 

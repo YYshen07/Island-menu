@@ -68,7 +68,10 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
 ## Performance
 
 - Budget: card closed, well under 0.5% CPU and about 25 MB; measured 0.15% over 60 s after this was last tuned.
-  Card open is about 6% CPU and 180 MB, mostly SceneKit.
+  Card open with the model at rest is about 2.3% CPU; memory is 180-235 MB, mostly SceneKit.
+- The model is drawn on demand (`MachineScene.updatePlayback`). Two things silently turn that back into
+  continuous rendering: a particle system attached to the scene, even with a birth rate of 0, and writing any
+  material property on every sample, even with an unchanged value.
 - Measure with CPU-time deltas, not single `top` samples, and check the card stayed closed for the whole window
   (the user opens it while you measure): `ps -o cputime= -p $(pgrep -x IslandMenu)` before and after a `sleep 60`.
 - Known costs: one temperature sensor read is over 0.5 ms (so sensors are de-duplicated and background loops read

@@ -141,6 +141,15 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
+            Section("外观") {
+                SettingRow(title: "配色", symbol: "paintpalette") {
+                    Picker("", selection: $preferences.colorful) {
+                        Text("彩色").tag(true)
+                        Text("纯白").tag(false)
+                    }
+                    .pickerStyle(.segmented).labelsHidden().frame(width: 160)
+                }
+            }
             Section("启动") {
                 SettingRow(title: "登录时启动", symbol: "power") {
                     Toggle("", isOn: $launchAtLogin).labelsHidden()

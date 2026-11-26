@@ -1,7 +1,7 @@
 import SceneKit
 import SwiftUI
 
-/// Hosts the 3D model. Frames are only produced while the card is open.
+/// Hosts the 3D model. The scene decides when frames are needed; see `MachineScene`.
 struct MachineView: NSViewRepresentable {
     let machine: MachineScene
     let thermal: ThermalSnapshot
@@ -15,19 +15,18 @@ struct MachineView: NSViewRepresentable {
         view.pointOfView = machine.camera
         view.delegate = machine
         view.backgroundColor = .clear
-        view.antialiasingMode = .multisampling2X
+        // Drawing is on demand, so the full-quality multisampling costs next to nothing.
+        view.antialiasingMode = .multisampling4X
         view.preferredFramesPerSecond = 30
         view.rendersContinuously = false
+        machine.attach(view)
         return view
     }
 
     func updateNSView(_ view: SCNView, context: Context) {
         machine.setPartying(isPartying)
+        machine.setCardOpen(isActive)
         machine.apply(thermal: thermal, fans: fans, logoLevel: 1)
-        if isActive != view.isPlaying {
-            machine.resetClock()
-            view.isPlaying = isActive
-        }
     }
 }
 
@@ -46,7 +45,10 @@ struct MachineSection: View {
             ZStack {
                 if let machine {
                     MachineView(machine: machine, thermal: thermal, fans: engine.snapshot.fans, isActive: state.isOpen, isPartying: keepAwake.isActive)
-                        .overlay(Color.clear.contentShape(Rectangle()).onTapGesture { machine.setLidOpen(!machine.isLidOpen) })
+                        // One click turns the machine over; a double click opens or closes the lid.
+                        .overlay(Color.clear.contentShape(Rectangle())
+                            .onTapGesture(count: 2) { machine.setLidOpen(!machine.isLidOpen) }
+                            .onTapGesture { machine.flip() })
                 }
             }
             .frame(height: Self.modelHeight)

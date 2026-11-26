@@ -54,12 +54,14 @@ final class HeatMapLayer {
         node.renderingOrder = 10
     }
 
-    /// Redraws only when a temperature has moved by a whole degree.
-    func update(_ spots: [Spot]) {
+    /// Redraws only when a temperature has moved by a whole degree. Returns whether it did.
+    @discardableResult
+    func update(_ spots: [Spot]) -> Bool {
         let key = spots.map { Int(($0.temperature ?? 0).rounded()) }
-        guard key != drawn else { return }
+        guard key != drawn else { return false }
         drawn = key
         material.emission.contents = render(spots)
+        return true
     }
 
     private func render(_ spots: [Spot]) -> CGImage? {
@@ -100,6 +102,9 @@ final class AirflowEffect {
     let node = SCNNode()
     private let intake = SCNParticleSystem()
     private let exhaust = SCNParticleSystem()
+    private let vent = SCNNode()
+    private let outlet = SCNNode()
+    private var isEmitting = false
     private let intakeDistance: CGFloat
     private let exhaustDistance: CGFloat
 
@@ -115,16 +120,12 @@ final class AirflowEffect {
         intake.emitterShape = SCNBox(width: 0.001, height: 0.001, length: Self.ventLength, chamferRadius: 0)
         intake.emittingDirection = SCNVector3(inward, 0, 0)
         intake.particleColor = NSColor(calibratedRed: 0.62, green: 0.84, blue: 1, alpha: 0.5)
-        let vent = SCNNode()
         vent.position = SCNVector3(sideEdge - centre.x, 0, 0)
-        vent.addParticleSystem(intake)
 
         configure(exhaust, size: 0.0026)
         exhaust.emitterShape = SCNBox(width: Self.finWidth, height: 0.001, length: 0.001, chamferRadius: 0)
         exhaust.emittingDirection = SCNVector3(0, 0, -1)
-        let outlet = SCNNode()
         outlet.position = SCNVector3(0, 0, -Self.rotorRadius)
-        outlet.addParticleSystem(exhaust)
 
         node.addChildNode(vent)
         node.addChildNode(outlet)
@@ -154,6 +155,18 @@ final class AirflowEffect {
 
     func update(level: Double, temperature: Double?) {
         let level = CGFloat(min(max(level, 0), 1))
+        // A particle system in the scene keeps SceneKit drawing every frame even when it emits
+        // nothing, so the systems are only attached while the fan is turning.
+        if (level > 0) != isEmitting {
+            isEmitting = level > 0
+            if isEmitting {
+                vent.addParticleSystem(intake)
+                outlet.addParticleSystem(exhaust)
+            } else {
+                vent.removeAllParticleSystems()
+                outlet.removeAllParticleSystems()
+            }
+        }
         let rate = level > 0 ? Self.fullBirthRate * (0.3 + 0.7 * level) : 0
         intake.birthRate = rate
         exhaust.birthRate = rate

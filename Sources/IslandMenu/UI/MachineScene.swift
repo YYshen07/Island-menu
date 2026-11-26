@@ -128,7 +128,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         facing.addChildNode(layer.node)
         heatMap = layer
         for rotor in motion.withLock({ $0.rotors }) {
-            let effect = AirflowEffect(centre: rotor.convertPosition(SCNVector3Zero, to: facing))
+            let centre = rotor.convertPosition(SCNVector3Zero, to: facing)
+            let effect = AirflowEffect(centre: centre, sideEdge: centre.x < 0 ? bodyLow.x : bodyHigh.x, hingeEdge: bodyLow.z)
             facing.addChildNode(effect.node)
             airflow.append(effect)
         }

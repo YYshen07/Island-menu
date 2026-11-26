@@ -83,67 +83,88 @@ final class HeatMapLayer {
     }
 }
 
-/// Stylised airflow for one fan: air drawn in around the rotor and blown out toward the hinge.
-/// It is an effect, not a simulation; density and speed follow the fan's speed.
+/// Stylised airflow for one fan, following the real path through the machine: cool air comes in
+/// through the side vent, crosses to the fan, and leaves through the fins at the hinge. It is an
+/// effect, not a simulation; density and speed follow the fan's speed.
 @MainActor
 final class AirflowEffect {
-    private static let intakeRadius: CGFloat = 0.043
     private static let rotorRadius: CGFloat = 0.026
-    private static let fullBirthRate: CGFloat = 220
+    private static let ventLength: CGFloat = 0.05
+    private static let finWidth: CGFloat = 0.04
+    /// How far past the hinge edge the exhaust is still visible before it has faded out.
+    private static let exhaustOvershoot: CGFloat = 0.012
+    private static let fullBirthRate: CGFloat = 90
+    private static let life: CGFloat = 0.55
     private static let sprite: CGImage? = softDot()
 
     let node = SCNNode()
     private let intake = SCNParticleSystem()
     private let exhaust = SCNParticleSystem()
+    private let intakeDistance: CGFloat
+    private let exhaustDistance: CGFloat
 
-    /// `centre` is the rotor's position in the node's parent space; the hinge is toward -z there.
-    init(centre: SCNVector3) {
+    /// `centre` is the rotor's position in the node's parent space, where the hinge is toward -z;
+    /// `sideEdge` and `hingeEdge` are the body's nearest side edge (x) and hinge edge (z) there.
+    init(centre: SCNVector3, sideEdge: CGFloat, hingeEdge: CGFloat) {
         node.position = centre
-        configure(intake, size: 0.0016, life: 0.5)
-        intake.emitterShape = SCNCylinder(radius: Self.intakeRadius, height: 0.001)
-        intake.birthLocation = .surface
-        intake.birthDirection = .surfaceNormal
-        intake.particleColor = NSColor(calibratedRed: 0.6, green: 0.82, blue: 1, alpha: 0.9)
-        configure(exhaust, size: 0.003, life: 0.42)
-        exhaust.birthDirection = .constant
+        let inward: CGFloat = sideEdge > centre.x ? -1 : 1
+        intakeDistance = abs(sideEdge - centre.x) - Self.rotorRadius
+        exhaustDistance = abs(centre.z - hingeEdge) - Self.rotorRadius + Self.exhaustOvershoot
+
+        configure(intake, size: 0.0022)
+        intake.emitterShape = SCNBox(width: 0.001, height: 0.001, length: Self.ventLength, chamferRadius: 0)
+        intake.emittingDirection = SCNVector3(inward, 0, 0)
+        intake.particleColor = NSColor(calibratedRed: 0.62, green: 0.84, blue: 1, alpha: 0.5)
+        let vent = SCNNode()
+        vent.position = SCNVector3(sideEdge - centre.x, 0, 0)
+        vent.addParticleSystem(intake)
+
+        configure(exhaust, size: 0.0026)
+        exhaust.emitterShape = SCNBox(width: Self.finWidth, height: 0.001, length: 0.001, chamferRadius: 0)
         exhaust.emittingDirection = SCNVector3(0, 0, -1)
-        exhaust.spreadingAngle = 34
-        exhaust.stretchFactor = 2
         let outlet = SCNNode()
         outlet.position = SCNVector3(0, 0, -Self.rotorRadius)
         outlet.addParticleSystem(exhaust)
-        node.addParticleSystem(intake)
+
+        node.addChildNode(vent)
         node.addChildNode(outlet)
         update(level: 0, temperature: nil)
     }
 
-    private func configure(_ system: SCNParticleSystem, size: CGFloat, life: CGFloat) {
+    private func configure(_ system: SCNParticleSystem, size: CGFloat) {
         system.particleImage = Self.sprite
         system.particleSize = size
-        system.particleSizeVariation = size * 0.5
-        system.particleLifeSpan = life
-        system.particleLifeSpanVariation = life * 0.3
+        system.particleSizeVariation = size * 0.4
+        system.particleLifeSpan = Self.life
+        system.particleLifeSpanVariation = Self.life * 0.2
+        system.birthLocation = .volume
+        system.birthDirection = .constant
+        system.spreadingAngle = 7
         system.blendMode = .additive
         system.isLocal = true
         system.isLightingEnabled = false
         system.writesToDepthBuffer = false
         system.birthRate = 0
-        // Fade each particle out over its life so streams dissolve instead of popping.
-        let fade = CABasicAnimation()
-        fade.fromValue = 1.0
-        fade.toValue = 0.0
+        // Fade in, then out, so the streams appear at the vent and dissolve instead of popping.
+        let fade = CAKeyframeAnimation()
+        fade.values = [0.0, 1.0, 1.0, 0.0]
+        fade.keyTimes = [0, 0.2, 0.6, 1]
         system.propertyControllers = [.opacity: SCNParticlePropertyController(animation: fade)]
     }
 
     func update(level: Double, temperature: Double?) {
         let level = CGFloat(min(max(level, 0), 1))
-        intake.birthRate = level > 0 ? Self.fullBirthRate * (0.25 + 0.75 * level) : 0
-        exhaust.birthRate = intake.birthRate * 0.6
-        // Negative speed along the surface normal carries intake particles inward to the rotor.
-        intake.particleVelocity = -(0.05 + 0.09 * level)
-        exhaust.particleVelocity = 0.05 + 0.13 * level
-        exhaust.particleVelocityVariation = exhaust.particleVelocity * 0.35
-        exhaust.particleColor = HeatRamp.color(temperature, alpha: 0.45)
+        let rate = level > 0 ? Self.fullBirthRate * (0.3 + 0.7 * level) : 0
+        intake.birthRate = rate
+        exhaust.birthRate = rate
+        // Each stream covers its whole path in one lifetime; a faster fan shortens the lifetime.
+        let life = Self.life / (0.6 + 0.9 * level)
+        for (system, distance) in [(intake, intakeDistance), (exhaust, exhaustDistance)] {
+            system.particleLifeSpan = life
+            system.particleVelocity = distance / life
+            system.particleVelocityVariation = system.particleVelocity * 0.15
+        }
+        exhaust.particleColor = HeatRamp.color(temperature, alpha: 0.5)
     }
 
     private static func softDot() -> CGImage? {

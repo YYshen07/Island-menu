@@ -50,6 +50,7 @@ struct MachineSection: View {
                 }
             }
             .frame(height: Self.modelHeight)
+            HeatLegend()
             HStack(spacing: 0) {
                 reading("芯片", thermal.dieMean)
                 reading("芯片最高", thermal.dieMax)
@@ -77,5 +78,22 @@ struct MachineSection: View {
             Text(title).label()
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// Colour key for the heat map on the model: the colour is a function of temperature alone.
+private struct HeatLegend: View {
+    private static let stops = 7
+
+    var body: some View {
+        let colors = (0..<Self.stops).map { step -> Color in
+            let temperature = HeatRamp.cool + (HeatRamp.hot - HeatRamp.cool) * Double(step) / Double(Self.stops - 1)
+            return Color(nsColor: HeatRamp.color(temperature))
+        }
+        HStack(spacing: 6) {
+            Text("\(Int(HeatRamp.cool))°").label()
+            Capsule().fill(LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)).frame(width: 120, height: 4)
+            Text("\(Int(HeatRamp.hot))°").label()
+        }
     }
 }

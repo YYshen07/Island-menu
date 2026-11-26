@@ -9,9 +9,18 @@
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>
-    <key>LSMinimumSystemVersion</key><string>15.0</string>
+    <key>LSMinimumSystemVersion</key><string>27.3</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSSupportsLiveActivities</key><true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>dev.yan.islandmenu</string>
+            <key>CFBundleURLSchemes</key>
+            <array><string>islandmenu</string></array>
+        </dict>
+    </array>
     <key>NSAudioCaptureUsageDescription</key><string>「音跃」模式开启时，Island Menu 会读取这台 Mac 正在播放的声音的响度，让顶盖 logo 随之律动。不会录制或保存任何内容。</string>
 </dict>
 </plist>

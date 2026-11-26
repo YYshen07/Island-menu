@@ -13,7 +13,7 @@ macOS performance monitor that expands out of the Dynamic Island on the PROLED M
   the machine is in use and a stray click lands in whatever app is in front.
 - Quit: `pkill -x IslandMenu` (or the menu bar icon → 退出)
 
-No tests or linter are set up yet.
+No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`.
 
 ## Layout
 
@@ -22,6 +22,8 @@ No tests or linter are set up yet.
 - `Sources/IslandMenu/UI/` — SwiftUI card and sections.
 - `Sources/IslandMenu/Control/` — things the app changes: logo light (CoreBrightness), charge limit (PowerUI), audio meter.
 - `Sources/IslandShared/` — SMC client and the XPC protocol, shared by the app and the helper.
+- `Widgets/` — widget extension with the Live Activity views. Built by xcodegen + xcodebuild from `bundle.sh`,
+  because SwiftPM cannot produce an app extension; it compiles `Sources/IslandShared/MonitorActivity.swift` directly.
 - `Sources/IslandMenuHelper/` — root launch daemon that writes fan speeds (registered with `SMAppService.daemon`).
 - `Sources/IslandMenu/Settings/` — preferences store and the settings window.
 - `Sources/IslandMenu/Drop/` — AirDrop drop zone.
@@ -40,8 +42,14 @@ No tests or linter are set up yet.
 
 ## Hardware notes (Mac17,13, macOS 27.3)
 
-- No public or usable private API puts third-party content in the system island: ActivityKit is unavailable
-  on macOS and MenuBarAgent checks entitlements. The system island also draws above every window level.
+- Native island: macOS 27.3 opens Live Activities (ActivityKit) to Mac apps. It needs the 27.3 SDK, i.e.
+  Xcode 27.3 beta at `/Applications/Xcode-beta.app`; `bundle.sh` selects it through `DEVELOPER_DIR`. The 27.2
+  SDK marks the same APIs unavailable, which is why an earlier check wrongly concluded there was no API.
+- `Activity.request` is refused unless the app is frontmost ("Requester is not foreground" in
+  `liveactivitiesd` logs), so `LiveActivityController` activates the app briefly before asking.
+- A Live Activity cannot host the full panel (static WidgetKit views, no SceneKit, no scrolling), so the
+  activity shows headline numbers and links to `islandmenu://panel`, which opens the overlay card.
+- The system island draws above every window level; the overlay card cannot cover it.
 - Charge limit: `PowerUISmartChargeClient` (`setMCLLimit:error:`, limits 80/85/90/95/100) works without root.
   The legacy SMC charge keys (CH0B, CH0C, CHTE) do not exist on this machine.
 - Fans: `FNum` = 2, `F{n}Ac`/`F{n}Mn`/`F{n}Mx`/`F{n}Tg` are `flt`, mode key is lowercase `F{n}md` (ui8). Writing needs root.

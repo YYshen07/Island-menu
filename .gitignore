@@ -12,3 +12,5 @@ assets/reference/
 # Blender scratch files
 assets/model/.render-log
 *.blend1
+Widgets/IslandMenuWidgets.xcodeproj/
+Widgets/build/

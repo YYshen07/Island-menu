@@ -8,7 +8,8 @@
 
 已有：
 
-- 灵动岛点击展开 / 收起（授予「辅助功能」权限后，点击不再触发系统原生灵动岛）
+- 原生灵动岛实时活动：在系统灵动岛里显示 CPU 占用和芯片温度，点开可进入完整面板
+- 完整面板：从灵动岛位置展开的卡片
 - CPU 每核占用、内存、储存、GPU 占用与显存、电池、网络速率与接口、公共 IP、进程排行
 - 芯片、SSD、电池温度，风扇转速
 - 3D 机模：顶盖一面是发光 logo，转到底面能看到按温度变色的部件和转动的风扇
@@ -28,7 +29,7 @@
 
 ## 构建
 
-需要 macOS 15 或更新版本，以及 Xcode 16 或更新版本的工具链（Swift 6）。
+需要 macOS 27.3 或更新版本、Xcode 27.3（测试版期间装在 `/Applications/Xcode-beta.app`）和 [XcodeGen](https://github.com/yonaskolb/XcodeGen)。
 
 ```sh
 ./scripts/bundle.sh                 # 生成 build/Island Menu.app

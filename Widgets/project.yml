@@ -1,0 +1,20 @@
+# Xcode project for the widget extension only; the app and helper are built with SwiftPM.
+# Generate with `xcodegen generate --spec Widgets/project.yml` (scripts/bundle.sh does this).
+name: IslandMenuWidgets
+options:
+  deploymentTarget:
+    macOS: "27.3"
+targets:
+  IslandMenuWidgets:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources
+      - path: ../Sources/IslandShared/MonitorActivity.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.yan.islandmenu.widgets
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: "NO"
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: Info.plist

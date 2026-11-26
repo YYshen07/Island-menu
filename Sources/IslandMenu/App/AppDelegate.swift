@@ -1,4 +1,5 @@
 import AppKit
+import IslandShared
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -8,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settings = SettingsWindowController(engine: engine)
     private var signalSources: [DispatchSourceSignal] = []
     private let airDrop = AirDropZone()
+    private let liveActivity = LiveActivityController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let controller = IslandController(engine: engine)
@@ -20,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         airDrop.install()
         LogoLight.shared.setMode(Preferences.shared.logoMode)
         FanController.shared.start()
+        liveActivity.start()
+        controller.systemIslandOwnsClicks = { [weak self] in self?.liveActivity.isRunning ?? false }
         if CommandLine.arguments.contains("--open") { controller.setOpen(true) }
         if CommandLine.arguments.contains("--settings") { openSettings() }
         if CommandLine.arguments.contains("--install-helper") { FanController.shared.installHelper() }
@@ -30,6 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LogoLight.shared.restore()
         KeepAwake.shared.stop()
         FanController.shared.shutdown()
+        liveActivity.stop()
+    }
+
+    /// The Live Activity's link and tap target open `islandmenu://panel`.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard urls.contains(where: { $0.scheme == IslandLink.scheme }) else { return }
+        island?.setOpen(true)
     }
 
     /// Menu bar icon: a second way to open the card, and the only way to quit.

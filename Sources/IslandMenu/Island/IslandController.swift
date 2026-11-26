@@ -35,6 +35,9 @@ final class IslandController {
     private var pendingShrink: DispatchWorkItem?
     private lazy var clickTap = IslandClickTap { [weak self] in self?.toggle() }
     private var lastToggle = Date.distantPast
+    /// True while our Live Activity is in the system island. The system then handles clicks on the
+    /// pill itself (and opens the panel through its link), so this controller must not react to them.
+    var systemIslandOwnsClicks: () -> Bool = { false }
 
     init(engine: MetricsEngine) {
         self.engine = engine
@@ -60,7 +63,6 @@ final class IslandController {
         layout()
         panel.orderFrontRegardless()
         installMonitors()
-        clickTap.start(prompting: true)
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.layout() }
         }
@@ -108,7 +110,9 @@ final class IslandController {
     /// Whether island clicks are being kept from the system island. Retries the tap, since the
     /// Accessibility permission may have been granted after launch.
     var interceptsIslandClicks: Bool {
-        clickTap.start(prompting: false)
+        // With a native Live Activity there is nothing to intercept, so the Accessibility tap stays off.
+        guard !systemIslandOwnsClicks() else { return false }
+        return clickTap.start(prompting: false)
     }
 
     /// Clicks are handled at the event level rather than by SwiftUI gestures, so they work whether
@@ -135,6 +139,7 @@ final class IslandController {
     private func handleClick(at point: NSPoint) -> Bool {
         guard let island else { return false }
         if island.pillFrame.contains(point) {
+            guard !systemIslandOwnsClicks() else { return false }
             toggle()
             return true
         }

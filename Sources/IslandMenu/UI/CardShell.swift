@@ -51,8 +51,10 @@ struct IslandRootView: View {
         GeometryReader { proxy in
             let open = state.isOpen
             let island = state.islandSize
-            let limit = proxy.size.height - IslandGeometry.topInset - Self.bottomGap
-            let cardHeight = min(contentHeight + island.height + Self.headroom, limit)
+            let topInset = open ? IslandGeometry.cardTopInset : IslandGeometry.topInset
+            let header = island.height + IslandGeometry.topInset - IslandGeometry.cardTopInset + Self.headroom
+            let limit = proxy.size.height - IslandGeometry.cardTopInset - Self.bottomGap
+            let cardHeight = min(contentHeight + header, limit)
             let _ = (state.cardHeight = cardHeight)
             let size = open ? CGSize(width: IslandController.cardWidth, height: cardHeight) : island
             let shape = RoundedRectangle(cornerRadius: open ? Theme.cardRadius : island.height / 2, style: .continuous)
@@ -61,7 +63,7 @@ struct IslandRootView: View {
                     .frame(width: IslandController.cardWidth)
                     .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
             }
-            .padding(.top, island.height + Self.headroom)
+            .padding(.top, header)
             .opacity(open ? 1 : 0)
             .allowsHitTesting(open)
             .frame(width: size.width, height: size.height, alignment: .top)
@@ -73,8 +75,9 @@ struct IslandRootView: View {
             // Closed, the system island must show through, so the surface only exists while open.
             .opacity(open ? 1 : 0)
             .animation(open ? .easeOut(duration: 0.08) : .easeIn(duration: 0.12).delay(0.3), value: open)
-            .padding(.top, IslandGeometry.topInset)
+            .padding(.top, topInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .animation(Theme.spring, value: open)
             .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
         }
         .preferredColorScheme(.dark)

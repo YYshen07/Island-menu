@@ -122,7 +122,8 @@ final class IslandController {
             return true
         }
         guard state.isOpen else { return false }
-        let card = NSRect(x: island.midX - Self.cardWidth / 2, y: island.pillFrame.maxY - state.cardHeight, width: Self.cardWidth, height: state.cardHeight)
+        let top = island.screenTop - IslandGeometry.cardTopInset
+        let card = NSRect(x: island.midX - Self.cardWidth / 2, y: top - state.cardHeight, width: Self.cardWidth, height: state.cardHeight)
         guard !card.contains(point) else { return false }
         setOpen(false)
         return true

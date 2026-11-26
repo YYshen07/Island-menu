@@ -15,6 +15,9 @@ extension NSScreen {
 struct IslandGeometry {
     /// Gap between the top of the screen and the top of the pill.
     static let topInset: CGFloat = 7
+    /// Gap between the top of the screen and the open card. The system island is drawn above every
+    /// window, so the card starts a little higher and keeps a black margin all round the pill.
+    static let cardTopInset: CGFloat = 2
     /// Gap between the bottom of the pill and the bottom of the safe area.
     private static let bottomInset: CGFloat = 1
     /// How far the pill extends past the camera cutout on each side.

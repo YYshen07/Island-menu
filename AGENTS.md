@@ -8,6 +8,8 @@ macOS performance monitor that expands out of the Dynamic Island on the PROLED M
 - Build the app bundle: `./scripts/bundle.sh` → `build/Island Menu.app` (ad-hoc signed)
 - Run with the card already open: `open "build/Island Menu.app" --args --open`
 - Build a distributable zip: `./scripts/package.sh` → `build/IslandMenu-<version>.zip`
+- Toggle the card from a script: `pkill -USR1 -x IslandMenu`. Do not post synthetic mouse clicks to test it;
+  the machine is in use and a stray click lands in whatever app is in front.
 - Quit: `pkill -x IslandMenu` (or the menu bar icon → 退出)
 
 No tests or linter are set up yet.

@@ -1,8 +1,9 @@
 import Foundation
 import IOKit
 
-// Read-only AppleSMC client. The struct layout and call sequence follow exelban/stats
-// (MIT, https://github.com/exelban/stats), reduced to what fan readout needs.
+// AppleSMC client. The struct layout and call sequence follow exelban/stats
+// (MIT, https://github.com/exelban/stats), reduced to what fan readout and control need.
+// Reading works for any user; writing only succeeds as root.
 
 private struct SMCKeyData {
     typealias Bytes = (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
@@ -42,16 +43,17 @@ private struct SMCKeyData {
     var bytes: Bytes = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
 
-final class SMC {
+public final class SMC {
     private static let kernelIndex: UInt32 = 2
     private static let readBytes: UInt8 = 5
+    private static let writeBytes: UInt8 = 6
     private static let readKeyInfo: UInt8 = 9
     private static let floatType = SMC.code("flt ")
 
     private var connection: io_connect_t = 0
     private var keyInfo: [UInt32: SMCKeyData.KeyInfo] = [:]
 
-    init?() {
+    public init?() {
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSMC"))
         guard service != 0 else { return nil }
         defer { IOObjectRelease(service) }
@@ -63,7 +65,7 @@ final class SMC {
     }
 
     /// Numeric value of a key, or nil if the key is missing or not a type handled here.
-    func value(_ key: String) -> Double? {
+    public func value(_ key: String) -> Double? {
         guard let (info, bytes) = read(key) else { return nil }
         if info.dataType == Self.floatType, info.dataSize == 4 {
             return Double(bytes.withUnsafeBytes { $0.loadUnaligned(as: Float32.self) })
@@ -72,10 +74,33 @@ final class SMC {
     }
 
     /// Type code and raw bytes of a key, for keys that are not plain numbers.
-    func raw(_ key: String) -> (type: String, bytes: [UInt8])? {
+    public func raw(_ key: String) -> (type: String, bytes: [UInt8])? {
         guard let (info, bytes) = read(key) else { return nil }
         let type = String(bytes: withUnsafeBytes(of: info.dataType.bigEndian) { Array($0) }, encoding: .ascii) ?? "?"
         return (type, bytes)
+    }
+
+    /// Writes a 32-bit float key. Returns false if the key is missing, not a float, or the SMC refuses.
+    public func write(_ key: String, float value: Float32) -> Bool {
+        guard let (info, _) = read(key), info.dataType == Self.floatType, info.dataSize == 4 else { return false }
+        return write(key, bytes: withUnsafeBytes(of: value) { Array($0) }, size: info.dataSize)
+    }
+
+    /// Writes a one-byte key.
+    public func write(_ key: String, byte value: UInt8) -> Bool {
+        guard let (info, _) = read(key), info.dataSize == 1 else { return false }
+        return write(key, bytes: [value], size: info.dataSize)
+    }
+
+    private func write(_ key: String, bytes: [UInt8], size: UInt32) -> Bool {
+        var input = SMCKeyData()
+        input.key = Self.code(key)
+        input.data8 = Self.writeBytes
+        input.keyInfo.dataSize = size
+        withUnsafeMutableBytes(of: &input.bytes) { $0.copyBytes(from: bytes.prefix(32)) }
+        // The call can succeed at the IOKit level while the SMC itself rejects the write.
+        guard let output = call(&input) else { return false }
+        return output.result == 0
     }
 
     private func read(_ key: String) -> (SMCKeyData.KeyInfo, [UInt8])? {
@@ -106,25 +131,5 @@ final class SMC {
 
     private static func code(_ key: String) -> UInt32 {
         key.utf8.prefix(4).reduce(0) { $0 << 8 | UInt32($1) }
-    }
-}
-
-struct FanSnapshot {
-    var rpm = 0.0
-    var minimum = 0.0
-    var maximum = 0.0
-    /// 0 at rest, 1 at the fan's rated maximum.
-    var level: Double { maximum > 0 ? min(max(rpm / maximum, 0), 1) : 0 }
-}
-
-final class FanSampler {
-    private let smc = SMC()
-    private lazy var count = Int(smc?.value("FNum") ?? 0)
-
-    func sample() -> [FanSnapshot] {
-        guard let smc else { return [] }
-        return (0..<count).map { index in
-            FanSnapshot(rpm: smc.value("F\(index)Ac") ?? 0, minimum: smc.value("F\(index)Mn") ?? 0, maximum: smc.value("F\(index)Mx") ?? 0)
-        }
     }
 }

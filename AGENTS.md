@@ -7,6 +7,7 @@ macOS performance monitor that expands out of the Dynamic Island on the PROLED M
 - Build (debug): `swift build`
 - Build the app bundle: `./scripts/bundle.sh` → `build/Island Menu.app` (ad-hoc signed)
 - Run with the card already open: `open "build/Island Menu.app" --args --open`
+- Install to /Applications and launch (needed for the fan helper): `./scripts/install.sh`
 - Build a distributable zip: `./scripts/package.sh` → `build/IslandMenu-<version>.zip`
 - Toggle the card from a script: `pkill -USR1 -x IslandMenu`. Do not post synthetic mouse clicks to test it;
   the machine is in use and a stray click lands in whatever app is in front.
@@ -20,6 +21,8 @@ No tests or linter are set up yet.
 - `Sources/IslandMenu/Metrics/` — samplers (one file per subsystem) and `MetricsEngine`.
 - `Sources/IslandMenu/UI/` — SwiftUI card and sections.
 - `Sources/IslandMenu/Control/` — things the app changes: logo light (CoreBrightness), charge limit (PowerUI), audio meter.
+- `Sources/IslandShared/` — SMC client and the XPC protocol, shared by the app and the helper.
+- `Sources/IslandMenuHelper/` — root launch daemon that writes fan speeds (registered with `SMAppService.daemon`).
 - `Sources/IslandMenu/Settings/` — preferences store and the settings window.
 - `Sources/IslandMenu/Drop/` — AirDrop drop zone.
 - `mockup/` — static web design mockup with simulated data.

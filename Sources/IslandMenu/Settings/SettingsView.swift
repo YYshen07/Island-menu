@@ -15,10 +15,11 @@ struct SettingsView: View {
 private struct FanSettings: View {
     @EnvironmentObject private var preferences: Preferences
     @EnvironmentObject private var engine: MetricsEngine
+    @ObservedObject private var fans = FanController.shared
     private static let modeNames: [FanMode: String] = [.auto: "自动", .max: "最大", .curve: "策略"]
 
     var body: some View {
-        let temperature = engine.snapshot.thermal.dieMean
+        let temperature = engine.snapshot.thermal.dieMax
         Form {
             Section {
                 Picker("模式", selection: $preferences.fanMode) {
@@ -26,7 +27,7 @@ private struct FanSettings: View {
                 }
                 .pickerStyle(.segmented)
             } footer: {
-                Text("风扇控制组件尚未安装，目前选择的模式和曲线只会保存，不会改变实际转速。")
+                Text(fans.helperState == .ready ? "「策略」模式按下面的曲线控制转速；曲线为 0 的温度段交给 macOS。芯片达到 95°C 时无论曲线如何都会全速。" : "风扇控制组件尚未启用，模式和曲线只会保存。请在卡片的风扇栏里安装。")
             }
             Section("策略曲线") {
                 FanCurveEditor(points: $preferences.fanCurve, currentTemperature: temperature)

@@ -19,13 +19,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installToggleSignal()
         airDrop.install()
         LogoLight.shared.setMode(Preferences.shared.logoMode)
+        FanController.shared.start()
         if CommandLine.arguments.contains("--open") { controller.setOpen(true) }
         if CommandLine.arguments.contains("--settings") { openSettings() }
+        if CommandLine.arguments.contains("--install-helper") { FanController.shared.installHelper() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         engine.flush()
         LogoLight.shared.restore()
+        FanController.shared.shutdown()
     }
 
     /// Menu bar icon: a second way to open the card, and the only way to quit.

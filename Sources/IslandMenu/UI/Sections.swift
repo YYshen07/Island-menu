@@ -119,6 +119,58 @@ struct BatterySection: View {
     }
 }
 
+struct FanSection: View {
+    @EnvironmentObject private var engine: MetricsEngine
+    @EnvironmentObject private var state: IslandState
+    @ObservedObject private var fans = FanController.shared
+    @ObservedObject private var preferences = Preferences.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHead(title: "风扇") { Text(readout).detail() }
+            switch fans.helperState {
+            case .ready:
+                PillPicker(options: [(FanMode.auto, "自动"), (.max, "最大"), (.curve, "策略")], selection: $preferences.fanMode, height: 26)
+                Text(note).label()
+            case .notInstalled:
+                action("安装风扇控制组件", note: "控制转速需要一个后台组件，安装时系统会请你批准。") { fans.installHelper() }
+            case .needsApproval:
+                action("打开登录项设置", note: "请在「系统设置 → 通用 → 登录项与扩展」里允许 Island Menu，然后回到这里。") { fans.installHelper() }
+            case .unavailable(let reason):
+                action("重试", note: "风扇控制不可用：\(reason)") { fans.installHelper() }
+            }
+        }
+        .section()
+        .onChange(of: state.isOpen, initial: true) { _, open in
+            if open { fans.refreshHelperState() }
+        }
+    }
+
+    private var readout: String {
+        let speeds = engine.snapshot.fans.map { $0.rpm < 1 ? "停转" : "\(Int($0.rpm.rounded())) 转" }
+        return speeds.joined(separator: " · ")
+    }
+
+    private var note: String {
+        switch preferences.fanMode {
+        case .auto: "跟随 macOS 温控策略"
+        case .max: "全速运行"
+        case .curve: fans.targetLevel.map { $0 > 0 ? "按设置里的曲线，当前 \(Int(($0 * 100).rounded()))%" : "按设置里的曲线，当前温度下交给 macOS" } ?? "按设置里的曲线"
+        }
+    }
+
+    private func action(_ title: String, note: String, perform: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button(action: perform) {
+                Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
+                    .frame(maxWidth: .infinity, minHeight: 28).background(Capsule().fill(.white.opacity(0.16)))
+            }
+            .buttonStyle(.plain)
+            Text(note).label().fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 struct LogoLightSection: View {
     @ObservedObject private var light = LogoLight.shared
     private static let notes: [LogoMode: String] = [

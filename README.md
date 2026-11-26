@@ -13,6 +13,7 @@
 - 芯片、SSD、电池温度，风扇转速
 - 3D 机模：顶盖一面是发光 logo，转到底面能看到按温度变色的部件和转动的风扇
 - 顶盖 logo 灯：自动 / 呼吸 / 音跃（随系统声音律动）
+- 风扇控制：自动 / 最大 / 策略（自定义温度曲线），通过一个需要你批准的后台组件写入转速
 - 充电上限：自动 / 养护 / 满充，使用 macOS 自带的充电上限
 - 拖动文件时在灵动岛下方出现隔空投送投放区
 - 设置窗口（菜单栏图标或卡片右上角的齿轮）
@@ -20,7 +21,6 @@
 
 还没有：
 
-- 风扇控制（设置里的曲线目前只保存，不生效）
 - GPU 帧率与频率、网络延迟
 
 采集只在卡片展开时运行；收起后只剩每分钟一次的活跃时长记录。
@@ -32,10 +32,13 @@
 ```sh
 ./scripts/bundle.sh                 # 生成 build/Island Menu.app
 open "build/Island Menu.app"
+./scripts/install.sh                # 构建并安装到 /Applications（风扇控制需要从这里运行）
 ./scripts/package.sh                # 生成 build/IslandMenu-<version>.zip
 ```
 
 钥匙串里有 Developer ID Application 证书时，`bundle.sh` 会用它签名，否则用临时签名。`package.sh` 在找到名为 `islandmenu-notary` 的 notarytool 钥匙串凭据时会提交公证并装订票据；没有公证的包首次打开会被 Gatekeeper 拦截，需要在「系统设置 → 隐私与安全性」里放行。
+
+风扇控制组件只接受由同一开发者团队签名的 Island Menu 的连接。用自己的证书构建时，需要把 `Sources/IslandShared/FanHelperProtocol.swift` 里的 `teamIdentifier` 改成你的团队 ID。
 
 ## 隐私
 

@@ -8,8 +8,8 @@ import SceneKit
 @MainActor
 final class MachineScene: NSObject, SCNSceneRendererDelegate {
     nonisolated static let resourceName = "macbook-pro-14"
-    private static let coolTemperature = 35.0
-    private static let hotTemperature = 95.0
+    private static let coolTemperature = 30.0
+    private static let hotTemperature = 90.0
     private static let bottomOpacity: CGFloat = 0.1
     private static let ghostOpacity: CGFloat = 0.25
     private static let cameraDistance: CGFloat = 0.72
@@ -181,8 +181,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         guard let material = heated[name] else { return }
         let range = Self.hotTemperature - Self.coolTemperature
         let heat = min(max(((temperature ?? Self.coolTemperature) - Self.coolTemperature) / range, 0), 1)
-        // Dark when cool, amber through the middle, red at the top.
-        material.emission.contents = NSColor(hue: 0.1 - 0.1 * heat, saturation: 0.9, brightness: heat, alpha: 1)
+        // A thermal-camera ramp that is visible even when cool: blue, through green and amber, to red.
+        material.emission.contents = NSColor(hue: 0.62 * (1 - heat), saturation: 0.85, brightness: 0.45 + 0.55 * heat, alpha: 1)
     }
 
     /// Sets the turntable angle directly, in turns (0 = lid facing the camera).

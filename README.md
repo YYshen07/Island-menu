@@ -31,7 +31,7 @@ open "build/Island Menu.app"
 ./scripts/package.sh                # 生成 build/IslandMenu-<version>.zip
 ```
 
-构建产物是临时签名的。从别处下载的包首次打开会被 Gatekeeper 拦截，需要在「系统设置 → 隐私与安全性」里放行。
+钥匙串里有 Developer ID Application 证书时，`bundle.sh` 会用它签名，否则用临时签名。`package.sh` 在找到名为 `islandmenu-notary` 的 notarytool 钥匙串凭据时会提交公证并装订票据；没有公证的包首次打开会被 Gatekeeper 拦截，需要在「系统设置 → 隐私与安全性」里放行。
 
 ## 隐私
 

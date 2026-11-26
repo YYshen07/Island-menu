@@ -1,0 +1,82 @@
+import SwiftUI
+
+struct VisualEffect: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.appearance = NSAppearance(named: .vibrantDark)
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+}
+
+/// Solid black around the island, fading into dark glass further down.
+struct CardBackground: View {
+    private static let solidUntil: CGFloat = 150
+    private static let glassFrom: CGFloat = 420
+
+    var body: some View {
+        GeometryReader { proxy in
+            let height = max(proxy.size.height, 1)
+            ZStack {
+                VisualEffect()
+                LinearGradient(stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: min(Self.solidUntil / height, 1)),
+                    .init(color: .black.opacity(0.5), location: min(Self.glassFrom / height, 1)),
+                    .init(color: .black.opacity(0.42), location: 1),
+                ], startPoint: .top, endPoint: .bottom)
+            }
+        }
+    }
+}
+
+private struct ContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// The whole panel: invisible over the system island when closed, a card morphing out of the
+/// pill when open.
+struct IslandRootView: View {
+    @EnvironmentObject private var state: IslandState
+    @State private var contentHeight: CGFloat = 600
+    private static let bottomGap: CGFloat = 24
+    private static let headroom: CGFloat = 6
+
+    var body: some View {
+        GeometryReader { proxy in
+            let open = state.isOpen
+            let island = state.islandSize
+            let limit = proxy.size.height - IslandGeometry.topInset - Self.bottomGap
+            let cardHeight = min(contentHeight + island.height + Self.headroom, limit)
+            let _ = (state.cardHeight = cardHeight)
+            let size = open ? CGSize(width: IslandController.cardWidth, height: cardHeight) : island
+            let shape = RoundedRectangle(cornerRadius: open ? Theme.cardRadius : island.height / 2, style: .continuous)
+            ScrollView(.vertical, showsIndicators: false) {
+                CardView()
+                    .frame(width: IslandController.cardWidth)
+                    .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
+            }
+            .padding(.top, island.height + Self.headroom)
+            .opacity(open ? 1 : 0)
+            .allowsHitTesting(open)
+            .frame(width: size.width, height: size.height, alignment: .top)
+            .background(CardBackground())
+            .clipShape(shape)
+            .overlay(shape.stroke(.white.opacity(0.1), lineWidth: 1))
+            .shadow(color: .black.opacity(0.4), radius: 30, y: 18)
+            .animation(Theme.spring, value: open)
+            // Closed, the system island must show through, so the surface only exists while open.
+            .opacity(open ? 1 : 0)
+            .animation(open ? .easeOut(duration: 0.08) : .easeIn(duration: 0.12).delay(0.3), value: open)
+            .padding(.top, IslandGeometry.topInset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
+        }
+        .preferredColorScheme(.dark)
+    }
+}

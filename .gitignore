@@ -1,0 +1,10 @@
+.build/
+build/
+refs/
+.DS_Store
+*.xcuserstate
+.devin/*.local.json
+# Local-only: machine-specific agent config, third-party Blender add-on, private sketches
+.devin/
+tools/
+IMG_*.PNG

@@ -19,19 +19,32 @@ final class ThermalSampler {
     private lazy var sensors: [(name: String, service: IOHIDServiceClient)] = {
         _ = IOHIDEventSystemClientSetMatching(client, ["PrimaryUsagePage": 0xff00, "PrimaryUsage": 5] as CFDictionary)
         let services = (IOHIDEventSystemClientCopyServices(client) as? [IOHIDServiceClient]) ?? []
+        // The system lists most sensors two or three times over, and reading one costs well over half a
+        // millisecond, so only the first service of each name that belongs to a group is kept.
+        var seen = Set<String>()
         return services.compactMap { service in
-            guard let name = IOHIDServiceClientCopyProperty(service, "Product" as CFString) as? String else { return nil }
+            guard let name = IOHIDServiceClientCopyProperty(service, "Product" as CFString) as? String,
+                  Self.group(for: name) != nil, seen.insert(name).inserted else { return nil }
             return (name, service)
         }
     }()
 
+    /// Hottest die sensor only: the cheap reading the background loops (alerts, fan control) need.
+    func dieMax() -> Double? {
+        sensors.lazy.filter { Self.group(for: $0.name) == "die" }.compactMap(read).max()
+    }
+
+    private func read(_ sensor: (name: String, service: IOHIDServiceClient)) -> Double? {
+        guard let event = IOHIDServiceClientCopyEvent(sensor.service, Self.temperatureEvent, 0, 0) else { return nil }
+        let value = IOHIDEventGetFloatValue(event.takeRetainedValue(), Int32(Self.temperatureEvent << 16))
+        return Self.validRange.contains(value) ? value : nil
+    }
+
     func sample() -> ThermalSnapshot {
         var groups: [String: [Double]] = [:]
         for sensor in sensors {
-            guard let key = Self.group(for: sensor.name),
-                  let event = IOHIDServiceClientCopyEvent(sensor.service, Self.temperatureEvent, 0, 0) else { continue }
-            let value = IOHIDEventGetFloatValue(event.takeRetainedValue(), Int32(Self.temperatureEvent << 16))
-            if Self.validRange.contains(value) { groups[key, default: []].append(value) }
+            guard let key = Self.group(for: sensor.name), let value = read(sensor) else { continue }
+            groups[key, default: []].append(value)
         }
         func mean(_ key: String) -> Double? {
             guard let values = groups[key], !values.isEmpty else { return nil }

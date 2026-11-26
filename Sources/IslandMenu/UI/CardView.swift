@@ -122,7 +122,14 @@ struct CPUSection: View {
             }
             .frame(height: 40)
             .animation(.easeOut(duration: 0.6), value: cpu.total)
-            Text("Super").label()
+            // Each name sits under the first bar of its cluster.
+            GeometryReader { proxy in
+                let count = CGFloat(max(cpu.cores.count, 1))
+                let width = (proxy.size.width - Self.gap * (count - 1) - Self.groupGap) / count
+                Text("Super").label()
+                Text("Performance").label().offset(x: CGFloat(cpu.superCount) * (width + Self.gap) + Self.groupGap)
+            }
+            .frame(height: 14)
         }
         .section()
     }

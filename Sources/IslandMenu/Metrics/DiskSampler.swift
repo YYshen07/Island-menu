@@ -3,16 +3,27 @@ import IOKit
 
 /// Boot volume capacity plus whole-machine read/write throughput.
 final class DiskSampler {
+    /// Asking for "available for important usage" makes the system work out purgeable space, which
+    /// takes tens of milliseconds; capacity moves slowly, so it is refreshed this often at most.
+    private static let capacityLifetime: TimeInterval = 30
     private var previous: (read: UInt64, written: UInt64, time: TimeInterval)?
+    private var capacity: (total: UInt64, used: UInt64, at: TimeInterval)?
+
+    /// Total and used bytes of the boot volume, cached for `capacityLifetime`.
+    func volume() -> (total: UInt64, used: UInt64) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let capacity, now - capacity.at < Self.capacityLifetime { return (capacity.total, capacity.used) }
+        let keys: Set<URLResourceKey> = [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey]
+        guard let values = try? URL(fileURLWithPath: "/").resourceValues(forKeys: keys),
+              let total = values.volumeTotalCapacity, let free = values.volumeAvailableCapacityForImportantUsage else { return (0, 0) }
+        let fresh = (total: UInt64(total), used: UInt64(max(0, Int64(total) - free)), at: now)
+        capacity = fresh
+        return (fresh.total, fresh.used)
+    }
 
     func sample() -> DiskSnapshot {
         var snapshot = DiskSnapshot()
-        let keys: Set<URLResourceKey> = [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey]
-        if let values = try? URL(fileURLWithPath: "/").resourceValues(forKeys: keys),
-           let total = values.volumeTotalCapacity, let free = values.volumeAvailableCapacityForImportantUsage {
-            snapshot.total = UInt64(total)
-            snapshot.used = UInt64(max(0, Int64(total) - free))
-        }
+        (snapshot.total, snapshot.used) = volume()
         let (read, written) = ioBytes()
         let now = ProcessInfo.processInfo.systemUptime
         if let previous, now > previous.time, read >= previous.read, written >= previous.written {

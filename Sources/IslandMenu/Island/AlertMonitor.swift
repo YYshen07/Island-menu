@@ -156,10 +156,23 @@ private final class AlertSampler: @unchecked Sendable {
     private let disk = DiskSampler()
     private let battery = BatterySampler()
 
+    /// Storage and battery move slowly and are comparatively costly to read, so they are refreshed
+    /// once in this many samples (about a minute) and reused in between.
+    private static let slowEvery = 12
+    private var tick = 0
+    private var slow: [AlertKind: Double] = [:]
+
     func sample() -> [AlertKind: Double] {
         var readings: [AlertKind: Double] = [.cpu: cpu.sample().total * 100, .gpu: gpu.sample().usage * 100]
-        if let temperature = thermal.sample().dieMax { readings[.temperature] = temperature }
-        let volume = disk.sample()
+        if let temperature = thermal.dieMax() { readings[.temperature] = temperature }
+        if tick % Self.slowEvery == 0 { slow = slowReadings() }
+        tick += 1
+        return readings.merging(slow) { fast, _ in fast }
+    }
+
+    private func slowReadings() -> [AlertKind: Double] {
+        var readings: [AlertKind: Double] = [:]
+        let volume = disk.volume()
         if volume.total > 0 { readings[.storage] = Double(volume.used) / Double(volume.total) * 100 }
         // Only a battery that is actually draining can be low; on the charger there is nothing to do.
         let power = battery.sample()

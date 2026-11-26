@@ -65,6 +65,16 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
 - Test a logo mode without the UI: `defaults write dev.yan.islandmenu logoMode breathe` then relaunch;
   `refs/logoctl/.build/release/logoctl status --json` reads the live output.
 
+## Performance
+
+- Budget: card closed, well under 0.5% CPU and about 25 MB; measured 0.15% over 60 s after this was last tuned.
+  Card open is about 6% CPU and 180 MB, mostly SceneKit.
+- Measure with CPU-time deltas, not single `top` samples, and check the card stayed closed for the whole window
+  (the user opens it while you measure): `ps -o cputime= -p $(pgrep -x IslandMenu)` before and after a `sleep 60`.
+- Known costs: one temperature sensor read is over 0.5 ms (so sensors are de-duplicated and background loops read
+  only the die sensors); `volumeAvailableCapacityForImportantUsage` takes tens of ms (cached 30 s); the battery
+  registry read and the process walk are the next most expensive.
+
 ## Conventions
 
 - The target is the Dynamic Island (a floating pill below the top edge), not a notch. The card is a

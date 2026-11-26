@@ -153,6 +153,6 @@ private final class FanSensors: @unchecked Sendable {
     private let fans = FanSampler()
 
     func read() -> Reading {
-        Reading(temperature: thermal.sample().dieMax, fans: fans.sample())
+        Reading(temperature: thermal.dieMax(), fans: fans.sample())
     }
 }

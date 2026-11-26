@@ -25,7 +25,7 @@ final class MetricsEngine: ObservableObject {
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + ActivityStore.tickInterval, repeating: ActivityStore.tickInterval, leeway: .seconds(10))
         timer.setEventHandler { [samplers, weak self] in
-            samplers.activity.tick(diskUsed: samplers.disk.sample().used)
+            samplers.activity.tick(diskUsed: samplers.disk.volume().used)
             let days = samplers.activity.days
             Task { @MainActor in self?.days = days }
         }
@@ -98,6 +98,7 @@ final class Samplers: @unchecked Sendable {
     let activity = ActivityStore()
     private var tick = 0
     private var lastProcesses: [ProcessRow] = []
+    private var lastThermal = ThermalSnapshot()
     private let bootTime: Date = {
         guard let boot = Sysctl.value("kern.boottime", as: timeval.self) else { return Date() }
         return Date(timeIntervalSince1970: TimeInterval(boot.tv_sec))
@@ -112,11 +113,13 @@ final class Samplers: @unchecked Sendable {
         snapshot.network = network.sample()
         snapshot.battery = battery.sample()
         snapshot.gpu = gpu.sample()
-        snapshot.thermal = thermal.sample()
+        // Temperatures drift slowly and the sensors are slow to read, so they refresh at half rate.
+        if tick % 2 == 1 { lastThermal = thermal.sample() }
+        snapshot.thermal = lastThermal
         snapshot.gpu.temperature = snapshot.thermal.dieMean
         snapshot.fans = fans.sample()
-        // The process walk is the most expensive sample, so it runs at half rate.
-        if tick % 2 == 1 { lastProcesses = ProcessSampler.top(processes.sample(), limit: 4) }
+        // The process walk is the most expensive sample, so it runs every third second.
+        if tick % 3 == 1 { lastProcesses = ProcessSampler.top(processes.sample(), limit: 4) }
         snapshot.processes = lastProcesses
         return snapshot
     }

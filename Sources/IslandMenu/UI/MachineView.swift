@@ -15,7 +15,7 @@ struct MachineView: NSViewRepresentable {
         view.pointOfView = machine.camera
         view.delegate = machine
         view.backgroundColor = .clear
-        view.antialiasingMode = .multisampling4X
+        view.antialiasingMode = .multisampling2X
         view.preferredFramesPerSecond = 30
         view.rendersContinuously = false
         return view

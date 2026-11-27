@@ -102,8 +102,10 @@ final class FanController: ObservableObject {
         }
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now(), repeating: Self.loopInterval, leeway: .milliseconds(300))
+        // At full speed the temperature decides nothing, so it is not read.
+        let needsTemperature = mode == .curve
         timer.setEventHandler { [sensors, weak self] in
-            let reading = sensors.read()
+            let reading = sensors.read(temperature: needsTemperature)
             Task { @MainActor in self?.step(reading) }
         }
         timer.resume()
@@ -114,6 +116,7 @@ final class FanController: ObservableObject {
         let preferences = Preferences.shared
         guard preferences.fanMode != .auto, !reading.fans.isEmpty else { return }
         var level = preferences.fanMode == .max ? 1 : preferences.curveLevel(at: reading.temperature ?? Self.emergencyTemperature)
+        // (A missing reading in curve mode is treated as an emergency; in max mode none is taken.)
         if let temperature = reading.temperature, temperature >= Self.emergencyTemperature { level = 1 }
         targetLevel = level
         // A curve that asks for nothing means "let macOS decide", not "hold the fans stopped".
@@ -152,7 +155,7 @@ private final class FanSensors: @unchecked Sendable {
     private let thermal = ThermalSampler()
     private let fans = FanSampler()
 
-    func read() -> Reading {
-        Reading(temperature: thermal.dieMax(), fans: fans.sample())
+    func read(temperature: Bool) -> Reading {
+        Reading(temperature: temperature ? thermal.dieMax() : nil, fans: fans.sample())
     }
 }

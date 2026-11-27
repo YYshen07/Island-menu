@@ -109,10 +109,14 @@ struct IslandRootView: View {
             let surfaceVisible = open || (notch && state.drawsNotch)
             ScrollViewReader { scroller in
                 ScrollView(.vertical, showsIndicators: false) {
-                    CardView()
-                        .frame(width: IslandController.cardWidth)
-                        .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
-                        .id(ScrollAnchor.card)
+                    // The card exists only while the panel is expanded. Closed, nothing of it is
+                    // kept: no view graph, no observers of the metrics, no model.
+                    if state.isMounted {
+                        CardView()
+                            .frame(width: IslandController.cardWidth)
+                            .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
+                            .id(ScrollAnchor.card)
+                    }
                 }
                 // `islandmenu://bottom` and `islandmenu://top`, for scripted screenshots.
                 .onReceive(NotificationCenter.default.publisher(for: .scrollCommand)) { note in
@@ -148,7 +152,7 @@ struct IslandRootView: View {
             .padding(.top, topInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .animation(Theme.spring, value: open)
-            .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
+            .onPreferenceChange(ContentHeightKey.self) { if $0 > 0 { contentHeight = $0 } }
         }
         .preferredColorScheme(.dark)
     }

@@ -17,7 +17,10 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private static let cameraDistance: CGFloat = 0.72
     private static let tilt: CGFloat = -0.2
     private static let lidOpenAngle: CGFloat = 108 * .pi / 180
-    private static let poseDuration = 0.9
+    /// Pose changes are drawn at full rate; turning fans and the logo's flashing get by on less.
+    private static let transitionFrameRate = 60
+    private static let ambientFrameRate = 20
+    private static let poseDuration = 1.5
     /// Extra time frames keep coming after a pose change, so the last frame is the settled one.
     private static let settleMargin = 0.15
     /// Desk pose: how far the base is tipped toward the camera, how far it is turned, and how far
@@ -27,7 +30,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private static let deskCameraDistance: CGFloat = 0.95
     private static let deskDrop: CGFloat = -0.09
     /// Seconds for one full turn of the machine.
-    private static let flipDuration = 0.7
+    private static let flipDuration = 1.2
     /// Rotor speed on screen at full fan speed, in turns per second. Real speeds would strobe.
     private nonisolated static let maxTurnsPerSecond = 2.5
     private nonisolated static let minTurnsPerSecond = 0.25
@@ -154,7 +157,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             }
             if let housing = geometryNode("Fan_\(side)_Housing")?.geometry?.firstMaterial { housings.append(housing) }
         }
-        logo = geometryNode("Logo")?.geometry?.firstMaterial
+        logo = installGlyphLogo()
         logo?.lightingModel = .constant
         if !hasLogoLight, let logo {
             // Older machines have a polished metal logo, not a lit one: a steady silver, with a
@@ -292,6 +295,8 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         let fansVisible = fansTurning && showsUnderside && !isLidOpen
         let logoVisible = isPartying && (isLidOpen || !showsUnderside)
         let play = isCardOpen && (Date() < transitionEnd || fansVisible || logoVisible)
+        let rate = Date() < transitionEnd ? Self.transitionFrameRate : Self.ambientFrameRate
+        if view.preferredFramesPerSecond != rate { view.preferredFramesPerSecond = rate }
         if play != view.isPlaying {
             motion.withLock { $0.lastTime = nil }
             view.isPlaying = play

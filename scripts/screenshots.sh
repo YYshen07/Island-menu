@@ -5,7 +5,8 @@
 set -eu
 cd "$(dirname "$0")/.."
 OUT="$1"; shift
-APP="$PWD/build/Island Menu.app"
+# The fan section only shows its controls when the app runs from /Applications, so point APP there for the README set.
+APP="${APP:-$PWD/build/Island Menu.app}"
 mkdir -p "$OUT"
 window() {
     swift - <<'SWIFT'

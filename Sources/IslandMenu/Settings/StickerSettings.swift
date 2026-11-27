@@ -31,10 +31,7 @@ struct StickerSettings: View {
             }
             if let index = store.stickers.firstIndex(where: { $0.id == selection }) {
                 Section("选中的贴纸") {
-                    Picker("效果", selection: $store.stickers[index].style) {
-                        ForEach(StickerStyle.allCases) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
+                    effectGrid(index)
                     LabeledContent("大小") { Slider(value: $store.stickers[index].size, in: StickerStore.sizeRange).frame(width: 260) }
                     LabeledContent("旋转") { Slider(value: $store.stickers[index].rotation, in: -180...180).frame(width: 260) }
                     Button("删除这张贴纸", role: .destructive) {
@@ -50,6 +47,29 @@ struct StickerSettings: View {
             photo = nil
             Task { await add { try await item.loadTransferable(type: Data.self) } }
         }
+    }
+
+    /// Every effect applied to the selected sticker; click one to use it.
+    private func effectGrid(_ index: Int) -> some View {
+        let sticker = store.stickers[index]
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 10) {
+            ForEach(StickerStyle.allCases) { style in
+                Button { store.stickers[index].style = style } label: {
+                    VStack(spacing: 4) {
+                        Group {
+                            if let image = store.preview(of: sticker, in: style) { Image(decorative: image, scale: 1).resizable().scaledToFit() } else { Color.clear }
+                        }
+                        .frame(width: 56, height: 56)
+                        .padding(6)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: preferences.machineFinish.swatch)))
+                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor, lineWidth: sticker.style == style ? 2 : 0))
+                        Text(style.title).font(.caption).foregroundStyle(sticker.style == style ? .primary : .secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     /// The lid seen from above in the chosen finish, with the stickers on it.
@@ -75,14 +95,14 @@ struct StickerSettings: View {
         Task { await add { try Data(contentsOf: url) } }
     }
 
-    /// Cuts the sticker out off the main thread; it takes a second or two.
+    /// Cuts the sticker out; the system's subject lifting takes a second or two.
     private func add(_ load: @escaping @Sendable () async throws -> Data?) async {
         isWorking = true
         failure = nil
         defer { isWorking = false }
         do {
             guard let data = try await load() else { throw StickerMaker.Failure.unreadable }
-            let image = try await Task.detached(priority: .userInitiated) { try StickerMaker.make(from: data) }.value
+            let image = try await StickerMaker.make(from: data)
             try store.add(image)
             selection = store.stickers.last?.id
         } catch {

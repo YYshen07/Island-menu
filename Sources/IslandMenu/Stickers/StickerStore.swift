@@ -3,7 +3,7 @@ import os
 
 /// The effects Messages offers for a sticker.
 enum StickerStyle: String, Codable, CaseIterable, Identifiable {
-    case original, outline, comic, puffy, shiny
+    case original, outline, comic, puffy, shiny, noir, gold, lineArt, pixel, neon
 
     var id: String { rawValue }
 
@@ -14,6 +14,11 @@ enum StickerStyle: String, Codable, CaseIterable, Identifiable {
         case .comic: "漫画"
         case .puffy: "立体"
         case .shiny: "闪亮"
+        case .noir: "黑白"
+        case .gold: "鎏金"
+        case .lineArt: "线稿"
+        case .pixel: "像素"
+        case .neon: "霓虹"
         }
     }
 }
@@ -50,6 +55,7 @@ final class StickerStore: ObservableObject {
     /// Cut-outs as saved, and the same with each sticker's current effect applied.
     private var cutouts: [UUID: CGImage] = [:]
     private var styled: [UUID: (style: StickerStyle, image: CGImage)] = [:]
+    private var previews: [String: CGImage] = [:]
 
     private init() {
         stickers = UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([Sticker].self, from: $0) } ?? []
@@ -64,6 +70,16 @@ final class StickerStore: ObservableObject {
         cutouts[sticker.id] = cutout
         let image = StickerMaker.styled(cutout, sticker.style)
         styled[sticker.id] = (sticker.style, image)
+        return image
+    }
+
+    /// The sticker in another effect, for the picker in settings.
+    func preview(of sticker: Sticker, in style: StickerStyle) -> CGImage? {
+        let key = "\(sticker.id.uuidString)-\(style.rawValue)"
+        if let cached = previews[key] { return cached }
+        guard image(for: sticker) != nil, let cutout = cutouts[sticker.id] else { return nil }
+        let image = StickerMaker.styled(StickerMaker.thumbnail(of: cutout), style)
+        previews[key] = image
         return image
     }
 
@@ -83,6 +99,7 @@ final class StickerStore: ObservableObject {
         stickers.removeAll { $0.id == id }
         cutouts[id] = nil
         styled[id] = nil
+        previews = previews.filter { !$0.key.hasPrefix(id.uuidString) }
         do { try FileManager.default.removeItem(at: fileURL(id)) } catch { Self.log.error("could not delete sticker file: \(error.localizedDescription)") }
     }
 

@@ -46,7 +46,8 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
   picture (`ScreenContent`; the panel mesh has no UVs, so the picture is a plane laid over it on first lid open).
   Nodes differ per body (no `Fan_*`/`Heatpipe` on the Airs, `Die_Eff` instead of `Die_Super` on notch Pros), so
   look parts up optionally. Only the PROLED body has a lit logo; the rest get the mirror shader.
-- Stickers (`Sources/IslandMenu/Stickers/`): Vision subject lifting plus a white border, saved as PNGs in
+- Stickers (`Sources/IslandMenu/Stickers/`): VisionKit subject lifting (the Photos one; needs a running app,
+  so command-line paths fall back to Vision), effects applied on top in `StickerMaker.styled`, saved as PNGs in
   Application Support; `MachineStickers.swift` lays them on `Shell_Lid` as planes. Try one offscreen with
   `--render-model <usdz> out.png --sticker "/Library/User Pictures/Animals/Eagle.heic" 0`.
 - The wallpaper comes from the wallpaper service's store (`Wallpaper.swift`); `NSWorkspace.desktopImageURL`
@@ -56,6 +57,8 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
   `swift build` binary has no model and the machine section renders without it.
 - Check camera and lighting without launching the UI:
   `.build/debug/IslandMenu --render-model assets/model/macbook-pro-14.usdz /tmp/model.png`
+- The model's own logo mesh is a rough trace and off-centre; `MachineLogo.swift` replaces it at load with the
+  system font's Apple glyph (U+F8FF), centred on the lid.
 - `MachineScene` looks nodes up by the names in `docs/3d-model-brief.md`; renaming them breaks the bindings.
 - SceneKit calls the renderer delegate on its render thread, not the main actor.
 
@@ -86,8 +89,14 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
 
 ## Performance
 
-- Budget: card closed, well under 0.5% CPU and about 25 MB; measured 0.15% over 60 s after this was last tuned.
-  Card open with the model at rest is about 2.3% CPU; memory is 180-235 MB, mostly SceneKit.
+- Budget: card closed, well under 0.5% CPU. Measured for 1.0.0 with the fan curve loop running: about 0.2% and
+  20 MB fresh, 60 MB after the card has been opened once; open, 3-6% and about 180 MB (mostly SceneKit).
+- Closed, the card's SwiftUI content is unmounted (`IslandState.isMounted`) and the allocator is asked to give
+  back freed pages (`malloc_zone_pressure_relief`); without the latter the footprint stays near 105 MB.
+- The background loops read the die temperature through `ThermalSampler.dieMax()`, which reads all die sensors
+  only every tenth call and the three hottest in between. The fan loop skips it entirely in max mode.
+- The user is usually working on this machine while you measure, and any click outside closes the card. For
+  open-state numbers relaunch with `--open --pin`; for closed-state ones check the panel height stayed 39.
 - The model is drawn on demand (`MachineScene.updatePlayback`). Two things silently turn that back into
   continuous rendering: a particle system attached to the scene, even with a birth rate of 0, and writing any
   material property on every sample, even with an unchanged value.

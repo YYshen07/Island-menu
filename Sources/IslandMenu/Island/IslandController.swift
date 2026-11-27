@@ -10,6 +10,9 @@ final class IslandPanel: NSPanel {
 @MainActor
 final class IslandState: ObservableObject {
     @Published var isOpen = false
+    /// Whether the card's content exists. It is created just before the card opens and torn down
+    /// once the closing animation has finished.
+    @Published var isMounted = false
     @Published var islandSize = CGSize(width: 120, height: 32)
     /// Pill or notch, and where the closed shape and the open card start below the screen's top edge.
     @Published var style = IslandStyle.island
@@ -34,6 +37,7 @@ final class IslandController {
     private static let bottomMargin: CGFloat = 12
     private static let escapeKey: UInt16 = 53
     private static let toggleDebounce: TimeInterval = 0.25
+    private static let trimDelay: TimeInterval = 1.5
 
     private let engine: MetricsEngine
     let state = IslandState()
@@ -87,12 +91,17 @@ final class IslandController {
             if island?.style == .island { _ = interceptsIslandClicks }
             layout(open: true)
             panel.makeKey()
+            state.isMounted = true
             state.isOpen = true
         } else {
             state.isOpen = false
             let shrink = DispatchWorkItem { [weak self] in
                 self?.layout(open: false)
                 self?.engine.releaseLive()
+                self?.state.isMounted = false
+                // SceneKit and SwiftUI have just freed tens of megabytes in small blocks; without
+                // this the allocator keeps the emptied pages mapped and the footprint stays up.
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.trimDelay) { malloc_zone_pressure_relief(nil, 0) }
             }
             pendingShrink = shrink
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.closeDuration, execute: shrink)

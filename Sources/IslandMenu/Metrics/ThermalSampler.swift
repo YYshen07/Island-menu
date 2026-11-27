@@ -15,6 +15,10 @@ private func IOHIDEventGetFloatValue(_ event: CFTypeRef, _ field: Int32) -> Doub
 final class ThermalSampler {
     private static let temperatureEvent: Int64 = 15
     private static let validRange = 0.0...130.0
+    private static let trackedSensors = 3
+    private static let fullSweepEvery = 10
+    private var hottest: [(name: String, service: IOHIDServiceClient)] = []
+    private var sweepCountdown = 0
     private let client = IOHIDEventSystemClientCreate(kCFAllocatorDefault)
     private lazy var sensors: [(name: String, service: IOHIDServiceClient)] = {
         _ = IOHIDEventSystemClientSetMatching(client, ["PrimaryUsagePage": 0xff00, "PrimaryUsage": 5] as CFDictionary)
@@ -30,8 +34,18 @@ final class ThermalSampler {
     }()
 
     /// Hottest die sensor only: the cheap reading the background loops (alerts, fan control) need.
+    /// Each sensor read is a round trip to another process, so all of them are read only once in
+    /// `fullSweepEvery` calls; in between, only the few that were hottest then are read again.
+    /// The hot spot moves between neighbouring sensors slowly, so little is lost.
     func dieMax() -> Double? {
-        sensors.lazy.filter { Self.group(for: $0.name) == "die" }.compactMap(read).max()
+        if sweepCountdown == 0 || hottest.isEmpty {
+            let readings = sensors.filter { Self.group(for: $0.name) == "die" }.compactMap { sensor in read(sensor).map { (sensor, $0) } }
+            hottest = readings.sorted { $0.1 > $1.1 }.prefix(Self.trackedSensors).map(\.0)
+            sweepCountdown = Self.fullSweepEvery
+            return readings.map(\.1).max()
+        }
+        sweepCountdown -= 1
+        return hottest.compactMap(read).max()
     }
 
     private func read(_ sensor: (name: String, service: IOHIDServiceClient)) -> Double? {

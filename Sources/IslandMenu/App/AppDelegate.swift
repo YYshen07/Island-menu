@@ -13,6 +13,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var alerts: AnyObject?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Developer aid: `IslandMenu --add-sticker <picture>` makes a sticker the way settings does, then quits.
+        if let flag = CommandLine.arguments.firstIndex(of: "--add-sticker"), CommandLine.arguments.count > flag + 1 {
+            let data = FileManager.default.contents(atPath: CommandLine.arguments[flag + 1])
+            Task {
+                let made = await { () -> Bool in
+                    guard let data, let image = try? await StickerMaker.make(from: data) else { return false }
+                    return (try? StickerStore.shared.add(image)) != nil
+                }()
+                exit(made ? 0 : 1)
+            }
+            return
+        }
         let controller = IslandController(engine: engine)
         controller.install()
         controller.state.showSettings = { [weak self] in self?.openSettings() }

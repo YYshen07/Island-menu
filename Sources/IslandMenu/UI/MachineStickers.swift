@@ -13,8 +13,9 @@ extension MachineScene {
         let width = CGFloat(high.x - low.x), depth = CGFloat(high.z - low.z)
         for (index, entry) in stickers.enumerated() {
             let sticker = entry.sticker
+            let aspect = sticker.aspect > 0 ? sticker.aspect : 1
             let longSide = width * CGFloat(sticker.size)
-            let size = sticker.aspect >= 1 ? CGSize(width: longSide, height: longSide / CGFloat(sticker.aspect)) : CGSize(width: longSide * CGFloat(sticker.aspect), height: longSide)
+            let size = aspect >= 1 ? CGSize(width: longSide, height: longSide / CGFloat(aspect)) : CGSize(width: longSide * CGFloat(aspect), height: longSide)
             let plane = SCNPlane(width: size.width, height: size.height)
             let material = SCNMaterial()
             material.lightingModel = .lambert

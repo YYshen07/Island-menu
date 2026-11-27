@@ -90,7 +90,7 @@ final class StickerStore: ObservableObject {
         sticker.y = -0.22
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else { throw StickerMaker.Failure.unreadable }
-        try png.write(to: fileURL(sticker.id))
+        try png.write(to: fileURL(sticker.id), options: .atomic)
         cutouts[sticker.id] = image
         stickers.append(sticker)
     }
@@ -100,7 +100,7 @@ final class StickerStore: ObservableObject {
         cutouts[id] = nil
         styled[id] = nil
         previews = previews.filter { !$0.key.hasPrefix(id.uuidString) }
-        do { try FileManager.default.removeItem(at: fileURL(id)) } catch { Self.log.error("could not delete sticker file: \(error.localizedDescription)") }
+        do { try FileManager.default.removeItem(at: fileURL(id)) } catch { Self.log.error("could not delete sticker file: \(error.localizedDescription, privacy: .public)") }
     }
 
     private func fileURL(_ id: UUID) -> URL { folder.appendingPathComponent("\(id.uuidString).png") }

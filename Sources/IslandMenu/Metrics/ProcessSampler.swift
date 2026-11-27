@@ -5,7 +5,7 @@ import Darwin
 final class ProcessSampler {
     private var previous: (cpu: [pid_t: UInt64], time: UInt64)?
     func sample() -> [ProcessRow] {
-        var pids = [pid_t](repeating: 0, count: Int(proc_listallpids(nil, 0)) + 32)
+        var pids = [pid_t](repeating: 0, count: max(0, Int(proc_listallpids(nil, 0))) + 32)
         let count = Int(proc_listallpids(&pids, Int32(pids.count * MemoryLayout<pid_t>.stride)))
         let now = mach_absolute_time()
         var cpu: [pid_t: UInt64] = [:]

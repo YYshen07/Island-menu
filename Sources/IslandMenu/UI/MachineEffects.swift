@@ -66,7 +66,9 @@ final class HeatMapLayer {
     }
 
     private func render(_ spots: [Spot]) -> CGImage? {
+        guard size.width > 0, size.height > 0 else { return nil }
         let width = Int(size.width * Self.pixelsPerMetre), height = Int(size.height * Self.pixelsPerMetre)
+        guard width > 0, height > 0 else { return nil }
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         context.setFillColor(NSColor.black.cgColor)

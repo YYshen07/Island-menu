@@ -3,7 +3,7 @@ import Darwin
 /// Per-core load from `host_processor_info` tick deltas.
 final class CPUSampler {
     private var previous: [[UInt32]] = []
-    private let superCount = Int(Sysctl.value("hw.perflevel0.logicalcpu", as: Int32.self) ?? 0)
+    private let superCount = max(0, Int(Sysctl.value("hw.perflevel0.logicalcpu", as: Int32.self) ?? 0))
 
     func sample() -> CPUSnapshot {
         let ticks = readTicks()

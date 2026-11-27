@@ -41,6 +41,7 @@ struct FanCurveEditor: View {
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    guard !points.isEmpty else { return }
                     let index = dragging ?? nearest(to: value.startLocation, in: size)
                     dragging = index
                     move(index, to: value.location, in: size)
@@ -74,6 +75,7 @@ struct FanCurveEditor: View {
 
     /// Nodes stay ordered: a node cannot be dragged past its neighbours.
     private func move(_ index: Int, to location: CGPoint, in size: CGSize) {
+        guard points.indices.contains(index), size.width > 0, size.height > 0 else { return }
         let range = Preferences.temperatureRange
         let lower = index > 0 ? points[index - 1].temperature + Self.minimumGap : range.lowerBound
         let upper = index < points.count - 1 ? points[index + 1].temperature - Self.minimumGap : range.upperBound

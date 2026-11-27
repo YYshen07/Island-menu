@@ -10,7 +10,7 @@ enum StickerMaker {
     enum Failure: LocalizedError {
         case unreadable
 
-        var errorDescription: String? { "无法读取这张图片" }
+        var errorDescription: String? { "无法读取这张图片，请换一张常见格式的图片重试。" }
     }
 
     private static let maxSide: CGFloat = 640
@@ -55,7 +55,9 @@ enum StickerMaker {
     private static func finish(_ subject: CIImage) -> CGImage? {
         guard let full = render(subject) else { return nil }
         let trimmed = CIImage(cgImage: full).cropped(to: opaqueBounds(of: full))
-        let scale = min(maxSide / max(trimmed.extent.width, trimmed.extent.height), 1)
+        let longest = max(trimmed.extent.width, trimmed.extent.height)
+        guard longest > 0 else { return nil }
+        let scale = min(maxSide / longest, 1)
         let sized = trimmed.transformed(by: CGAffineTransform(translationX: -trimmed.extent.minX, y: -trimmed.extent.minY))
             .transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         return render(sized)
@@ -101,7 +103,9 @@ enum StickerMaker {
 
     /// A small copy for the effect picker, so ten previews do not cost ten full-size pictures.
     static func thumbnail(of cutout: CGImage) -> CGImage {
-        let scale = min(thumbnailSide / CGFloat(max(cutout.width, cutout.height)), 1)
+        let longest = CGFloat(max(cutout.width, cutout.height))
+        guard longest > 0 else { return cutout }
+        let scale = min(thumbnailSide / longest, 1)
         return render(CIImage(cgImage: cutout).transformed(by: CGAffineTransform(scaleX: scale, y: scale))) ?? cutout
     }
 

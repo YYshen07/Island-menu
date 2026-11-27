@@ -74,7 +74,6 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(chargeLimit, forKey: Key.chargeLimit) }
     }
 
-    /// Whether modules use their accent colours; off is the all-white look.
     /// Island or notch layout; nil follows the hardware.
     @Published var islandStyle: IslandStyle? {
         didSet { defaults.set(islandStyle?.rawValue, forKey: Key.islandStyle) }
@@ -94,6 +93,7 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(screenContent.rawValue, forKey: Key.screenContent) }
     }
 
+    /// Whether modules use their accent colours; off is the all-white look.
     @Published var colorful: Bool {
         didSet { defaults.set(colorful, forKey: Key.colorful) }
     }

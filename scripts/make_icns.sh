@@ -4,7 +4,9 @@ set -eu
 cd "$(dirname "$0")/.."
 mkdir -p assets/icon
 swift scripts/make_icon.swift assets/icon/AppIcon.png
-SET="$(mktemp -d)/AppIcon.iconset"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+SET="$TMP/AppIcon.iconset"
 mkdir -p "$SET"
 for size in 16 32 128 256 512; do
     sips -z "$size" "$size" assets/icon/AppIcon.png --out "$SET/icon_${size}x${size}.png" >/dev/null

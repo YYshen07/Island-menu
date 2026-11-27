@@ -18,7 +18,11 @@ final class KeepAwake: ObservableObject {
 
     private init() {
         // DisplayServices is private; it is the same call the brightness keys end up in.
-        let handle = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_NOW)
+        guard let handle = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_NOW) else {
+            getBrightness = nil
+            setBrightness = nil
+            return
+        }
         getBrightness = dlsym(handle, "DisplayServicesGetBrightness").map { unsafeBitCast($0, to: GetBrightness.self) }
         setBrightness = dlsym(handle, "DisplayServicesSetBrightness").map { unsafeBitCast($0, to: SetBrightness.self) }
     }

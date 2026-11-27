@@ -52,7 +52,7 @@ final class IslandClickTap {
             return false
         case .leftMouseDown where hitRect.contains(event.location):
             swallowingRelease = true
-            onClick()
+            DispatchQueue.main.async { [weak self] in self?.onClick() }
             return true
         case .leftMouseUp where swallowingRelease:
             swallowingRelease = false

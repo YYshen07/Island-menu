@@ -138,6 +138,7 @@ private final class LoudnessEnvelope: @unchecked Sendable {
         for buffer in UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: list)) {
             guard let data = buffer.mData else { continue }
             let count = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
+            guard count > 0 else { continue }
             var meanSquare: Float = 0
             vDSP_measqv(data.assumingMemoryBound(to: Float.self), 1, &meanSquare, vDSP_Length(count))
             sumOfSquares += Double(meanSquare) * Double(count)

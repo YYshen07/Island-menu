@@ -76,7 +76,7 @@ struct MachineSettings: View {
             hasCustomImage = true
             importError = nil
         } catch {
-            importError = "无法保存图片：\(error.localizedDescription)"
+            importError = "无法保存图片：\(error.localizedDescription)。请检查图片文件是否可读，或换一张重试。"
         }
     }
 }

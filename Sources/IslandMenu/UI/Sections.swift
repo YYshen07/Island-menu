@@ -239,7 +239,7 @@ struct NetworkSection: View {
             }
             Sparkline(values: engine.downHistory.values, mirrored: engine.upHistory.values, color: Module.network.tint).frame(height: 44)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 24), GridItem(.flexible())], spacing: 6) {
-                ForEach(rows, id: \.0) { row in
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     HStack(spacing: 6) {
                         if row.2 { Circle().fill(Theme.live).frame(width: 6, height: 6) }
                         Text(row.0).label().lineLimit(1)

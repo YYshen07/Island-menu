@@ -1,6 +1,7 @@
 import ActivityKit
 import AppKit
 import IslandShared
+import os
 
 /// Watches a few readings in the background and raises a Live Activity in the Dynamic Island while
 /// one of them is over the limit set in settings. Nothing is shown the rest of the time.
@@ -16,6 +17,7 @@ final class AlertMonitor {
     private static let foregroundPoll = Duration.milliseconds(250)
     /// The system ends an activity after eight hours; a long-running alert is re-raised before that.
     private static let lifetime: TimeInterval = 7.5 * 3600
+    private static let logger = Logger(subsystem: "dev.yan.islandmenu", category: "alerts")
 
     private let queue = DispatchQueue(label: "dev.yan.islandmenu.alerts", qos: .utility)
     private let sampler = AlertSampler()
@@ -69,7 +71,7 @@ final class AlertMonitor {
 
     private func present(_ readings: [AlertKind: Double]) {
         // `AlertKind.allCases` is in priority order: the first active one is the one shown.
-        guard let kind = AlertKind.allCases.first(where: active.contains), let value = readings[kind] else {
+        guard let kind = AlertKind.allCases.first(where: active.contains), let value = readings[kind], value.isFinite else {
             end()
             return
         }
@@ -105,7 +107,7 @@ final class AlertMonitor {
                     shown = state
                     break
                 } catch {
-                    NSLog("Island Menu: alert could not be shown: %@", String(describing: error))
+                    Self.logger.error("alert could not be shown: \(String(describing: error), privacy: .public)")
                 }
             }
             if let previous, previous != NSRunningApplication.current { previous.activate() }

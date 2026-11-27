@@ -13,6 +13,7 @@ final class AirDropZone {
     private let model = DropZoneModel()
     private var dragChangeCount = NSPasteboard(name: .drag).changeCount
     private var monitors: [Any] = []
+    private var pendingHide: DispatchWorkItem?
 
     func install() {
         // File drags are detected through the drag pasteboard: it changes when a drag session starts.
@@ -35,14 +36,20 @@ final class AirDropZone {
     }
 
     private func dragEnded() {
+        guard panel?.isVisible == true else { return }
         // The drop itself is delivered after mouse-up, so give it a moment before hiding.
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.hideDelay) { [weak self] in
+        pendingHide?.cancel()
+        let hide = DispatchWorkItem { [weak self] in
             self?.panel?.orderOut(nil)
             self?.model.isTargeted = false
         }
+        pendingHide = hide
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.hideDelay, execute: hide)
     }
 
     private func show() {
+        pendingHide?.cancel()
+        pendingHide = nil
         guard let screen = NSScreen.builtIn ?? NSScreen.main else { return }
         let island = IslandGeometry(screen: screen, style: .current)
         let panel = self.panel ?? makePanel()

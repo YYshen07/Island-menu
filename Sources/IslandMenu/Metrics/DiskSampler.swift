@@ -16,7 +16,7 @@ final class DiskSampler {
         let keys: Set<URLResourceKey> = [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey]
         guard let values = try? URL(fileURLWithPath: "/").resourceValues(forKeys: keys),
               let total = values.volumeTotalCapacity, let free = values.volumeAvailableCapacityForImportantUsage else { return (0, 0) }
-        let fresh = (total: UInt64(total), used: UInt64(max(0, Int64(total) - free)), at: now)
+        let fresh = (total: UInt64(max(0, total)), used: UInt64(max(0, Int64(total) - free)), at: now)
         capacity = fresh
         return (fresh.total, fresh.used)
     }

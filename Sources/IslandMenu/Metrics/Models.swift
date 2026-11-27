@@ -96,10 +96,11 @@ struct Ring {
     private(set) var values: [Double]
 
     init(count: Int) {
-        values = Array(repeating: 0, count: count)
+        values = Array(repeating: 0, count: max(count, 1))
     }
 
     mutating func push(_ value: Double) {
+        guard !values.isEmpty else { return }
         values.removeFirst()
         values.append(value)
     }

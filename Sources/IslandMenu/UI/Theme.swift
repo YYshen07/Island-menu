@@ -44,14 +44,15 @@ enum Format {
     }
 
     static func rate(_ bytesPerSecond: Double) -> String {
-        let megabytes = bytesPerSecond / 1_000_000
-        return megabytes >= 1 ? String(format: "%.1f MB/s", megabytes) : String(format: "%.0f KB/s", bytesPerSecond / 1000)
+        let clamped = max(0, bytesPerSecond)
+        let megabytes = clamped / 1_000_000
+        return megabytes >= 1 ? String(format: "%.1f MB/s", megabytes) : String(format: "%.0f KB/s", clamped / 1000)
     }
 
     static func percent(_ fraction: Double) -> String { "\(Int((fraction * 100).rounded()))%" }
 
     static func duration(_ seconds: TimeInterval) -> String {
-        let minutes = Int(seconds) / 60
+        let minutes = max(0, Int(seconds)) / 60
         let (days, hours) = (minutes / 1440, minutes % 1440 / 60)
         if days > 0 { return "\(days) 天 \(hours) 小时" }
         return hours > 0 ? "\(hours) 小时 \(minutes % 60) 分" : "\(minutes) 分"

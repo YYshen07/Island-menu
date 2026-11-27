@@ -4,7 +4,7 @@ import SwiftUI
 
 struct SettingsView: View {
     /// `--settings-tab machine` (general, machine, stickers, alerts, fan, battery) opens on that tab, for screenshots.
-    @State private var tab = CommandLine.arguments.firstIndex(of: "--settings-tab").map { CommandLine.arguments[$0 + 1] } ?? "general"
+    @State private var tab = CommandLine.arguments.firstIndex(of: "--settings-tab").flatMap { $0 + 1 < CommandLine.arguments.count ? CommandLine.arguments[$0 + 1] : nil } ?? "general"
 
     var body: some View {
         TabView(selection: $tab) {
@@ -56,21 +56,21 @@ private struct FanSettings: View {
                 }
                 .pickerStyle(.segmented)
             } footer: {
-                Text(fans.helperState == .ready ? "「策略」模式按下面的曲线控制转速；曲线为 0 的温度段交给 macOS。芯片达到 95°C 时无论曲线如何都会全速。" : "风扇控制组件尚未启用，模式和曲线只会保存。请在卡片的风扇栏里安装。")
+                Text(fans.helperState == .ready ? "「策略」模式按下面的曲线控制转速；曲线为 0 的温度段交给 macOS。芯片达到 95 °C 时无论曲线如何都会全速。" : "风扇控制组件尚未启用，模式和曲线只会保存，不会生效。请在面板的风扇栏里安装。")
             }
             Section("策略曲线") {
                 FanCurveEditor(points: $preferences.fanCurve, currentTemperature: temperature)
                     .frame(height: 170)
                     .padding(.vertical, 4)
                 HStack {
-                    Text("40°C").foregroundStyle(.secondary)
+                    Text("40 °C").foregroundStyle(.secondary)
                     Spacer()
                     if let temperature {
                         Text("芯片 \(Int(temperature.rounded()))° → \(Int((preferences.curveLevel(at: temperature) * 100).rounded()))%")
                             .monospacedDigit()
                     }
                     Spacer()
-                    Text("100°C").foregroundStyle(.secondary)
+                    Text("100 °C").foregroundStyle(.secondary)
                 }
                 .font(.caption)
                 Button("恢复默认曲线") { preferences.fanCurve = Preferences.defaultCurve }
@@ -146,23 +146,7 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Section("卡片") {
-                SettingRow(title: "图表配色", symbol: "paintpalette") {
-                    Picker("", selection: $preferences.colorful) {
-                        Text("彩色").tag(true)
-                        Text("纯白").tag(false)
-                    }
-                    .pickerStyle(.segmented).labelsHidden().frame(width: 160)
-                }
-                SettingRow(title: "屏幕形态", symbol: "macbook") {
-                    Picker("", selection: $preferences.islandStyle) {
-                        Text("自动").tag(IslandStyle?.none)
-                        Text("灵动岛").tag(IslandStyle?.some(.island))
-                        Text("刘海").tag(IslandStyle?.some(.notch))
-                    }
-                    .pickerStyle(.segmented).labelsHidden().frame(width: 200)
-                }
-            }
+            panelSection
             Section("启动") {
                 SettingRow(title: "登录时启动", symbol: "power") {
                     Toggle("", isOn: $launchAtLogin).labelsHidden()
@@ -182,7 +166,7 @@ private struct GeneralSettings: View {
             } header: {
                 Text("防休眠")
             } footer: {
-                Text("点卡片左上角的苹果标开启：屏幕调到这个亮度并保持唤醒，再点一次恢复。")
+                Text("点面板左上角的苹果标开启：屏幕调到这个亮度并保持唤醒，再点一次恢复。")
             }
             Section {
                 SettingRow(title: "显示公共 IP", symbol: "network") {
@@ -191,10 +175,30 @@ private struct GeneralSettings: View {
             } header: {
                 Text("网络")
             } footer: {
-                Text("卡片展开时向 api.ipify.org 查询，最多每 10 分钟一次。")
+                Text("面板展开时向 api.ipify.org 查询，最多每 10 分钟一次。")
             }
         }
         .settingsPane()
+    }
+
+    private var panelSection: some View {
+        Section("面板") {
+            SettingRow(title: "图表配色", symbol: "paintpalette") {
+                Picker("", selection: $preferences.colorful) {
+                    Text("彩色").tag(true)
+                    Text("纯白").tag(false)
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 160)
+            }
+            SettingRow(title: "屏幕形态", symbol: "macbook") {
+                Picker("", selection: $preferences.islandStyle) {
+                    Text("自动").tag(IslandStyle?.none)
+                    Text("灵动岛").tag(IslandStyle?.some(.island))
+                    Text("刘海").tag(IslandStyle?.some(.notch))
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 200)
+            }
+        }
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
@@ -202,7 +206,7 @@ private struct GeneralSettings: View {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             loginError = nil
         } catch {
-            loginError = error.localizedDescription
+            loginError = "无法更改登录时启动：\(error.localizedDescription)。请到「系统设置 → 通用 → 登录项与扩展」里手动调整。"
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }
     }

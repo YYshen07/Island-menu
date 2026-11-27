@@ -7,7 +7,7 @@ final class FanService: NSObject, NSXPCListenerDelegate, FanHelperProtocol {
     private let queue = DispatchQueue(label: "dev.yan.islandmenu.helper.smc")
     private let smc = SMC()
     private var forced = false
-    private var lastCommand = Date.distantPast
+    private var lastCommand: TimeInterval = 0
     private var watchdog: DispatchSourceTimer?
 
     private var fanCount: Int { Int(smc?.value("FNum") ?? 0) }
@@ -38,7 +38,7 @@ final class FanService: NSObject, NSXPCListenerDelegate, FanHelperProtocol {
 
     private func force(_ rpm: [Double]) -> Bool {
         // The values come over XPC; anything that is not a plain number is refused outright.
-        guard let smc, fanCount > 0, !rpm.isEmpty, rpm.allSatisfy(\.isFinite) else { return false }
+        guard let smc, fanCount > 0, !rpm.isEmpty, rpm.count <= 16, rpm.allSatisfy(\.isFinite) else { return false }
         var succeeded = true
         for index in 0..<fanCount {
             guard let minimum = smc.value("F\(index)Mn"), let maximum = smc.value("F\(index)Mx"), maximum > minimum else {
@@ -50,7 +50,7 @@ final class FanService: NSObject, NSXPCListenerDelegate, FanHelperProtocol {
             succeeded = smc.write("F\(index)md", byte: 1) && smc.write("F\(index)Tg", float: target) && succeeded
         }
         forced = true
-        lastCommand = Date()
+        lastCommand = ProcessInfo.processInfo.systemUptime
         startWatchdog()
         // A partial failure must not leave one fan forced with nothing renewing it.
         if !succeeded { _ = release() }
@@ -75,7 +75,7 @@ final class FanService: NSObject, NSXPCListenerDelegate, FanHelperProtocol {
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + 1, repeating: 1)
         timer.setEventHandler { [weak self] in
-            guard let self, self.forced, Date().timeIntervalSince(self.lastCommand) > FanHelper.watchdogInterval else { return }
+            guard let self, self.forced, ProcessInfo.processInfo.systemUptime - self.lastCommand > FanHelper.watchdogInterval else { return }
             self.release()
         }
         timer.resume()

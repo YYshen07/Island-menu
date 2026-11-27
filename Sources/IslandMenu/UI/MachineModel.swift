@@ -142,11 +142,12 @@ enum ScreenContent: String, CaseIterable, Identifiable {
     /// The picture scaled to fill a panel of the given aspect ratio (width / height), with the
     /// panel's rounded corners cut off; nil when there is nothing to show.
     @MainActor func image(aspect: CGFloat) -> CGImage? {
-        guard let source, aspect > 0 else { return nil }
+        guard let source, source.width > 0, source.height > 0, aspect > 0 else { return nil }
         let width = min(CGFloat(source.width), Self.maxPixelWidth).rounded()
         let size = CGSize(width: width, height: (width / aspect).rounded())
-        guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
-                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        guard size.width >= 1, size.height >= 1, let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         let radius = size.width * Self.cornerFraction
         context.addPath(CGPath(roundedRect: CGRect(origin: .zero, size: size), cornerWidth: radius, cornerHeight: radius, transform: nil))
         context.clip()

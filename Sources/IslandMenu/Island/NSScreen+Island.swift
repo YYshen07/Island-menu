@@ -76,7 +76,8 @@ struct IslandGeometry {
         switch style {
         case .island:
             isSimulated = false
-            size = cutout.map { CGSize(width: $0 + Self.sideExtension * 2, height: safeTop - Self.pillTopInset - Self.bottomInset) } ?? Self.fallbackPill
+            let pillHeight = safeTop - Self.pillTopInset - Self.bottomInset
+            size = cutout.flatMap { pillHeight > 0 ? CGSize(width: $0 + Self.sideExtension * 2, height: pillHeight) : nil } ?? Self.fallbackPill
         case .notch:
             if let cutout, cutout >= Self.narrowestNotch {
                 isSimulated = false

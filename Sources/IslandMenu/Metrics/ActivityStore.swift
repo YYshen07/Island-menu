@@ -40,12 +40,14 @@ final class ActivityStore {
 
     /// Credits one interval of activity if there was any input during it.
     func tick(diskUsed: UInt64) {
-        let anyInput = CGEventType(rawValue: ~0)!
-        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
-        var record = days[Self.key(for: Date()), default: DayRecord()]
-        if idle < Self.tickInterval { record.active += Self.tickInterval }
+        let today = Self.key(for: Date())
+        var record = days[today, default: DayRecord()]
+        if let anyInput = CGEventType(rawValue: ~0) {
+            let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
+            if idle < Self.tickInterval { record.active += Self.tickInterval }
+        }
         if diskUsed > 0 { record.diskUsed = diskUsed }
-        days[Self.key(for: Date())] = record
+        days[today] = record
         ticksSinceSave += 1
         if ticksSinceSave >= Self.saveEvery { save() }
     }

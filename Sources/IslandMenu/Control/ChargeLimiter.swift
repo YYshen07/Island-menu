@@ -76,19 +76,20 @@ final class ChargeLimiter: ObservableObject {
         guard let client else { return }
         var error: NSError?
         var succeeded = false
+        let clamped = UInt8(min(max(limit, 80), Self.noLimit))
         switch mode {
         case .auto, .care:
             guard let (write, selector) = function("setMCLLimit:error:", as: WriteByte.self) else { return }
-            succeeded = write(client, selector, UInt8(mode == .auto ? Self.noLimit : limit), &error)
+            succeeded = write(client, selector, mode == .auto ? UInt8(Self.noLimit) : clamped, &error)
         case .full:
             // Only meaningful on top of a limit, so make sure one is set first.
             if self.mode == .auto, let (write, selector) = function("setMCLLimit:error:", as: WriteByte.self) {
-                _ = write(client, selector, UInt8(limit), &error)
+                _ = write(client, selector, clamped, &error)
             }
             guard let (lift, selector) = function("temporarilyDisableMCL:", as: Action.self) else { return }
             succeeded = lift(client, selector, &error)
         }
-        lastError = succeeded ? nil : (error?.localizedDescription ?? "系统拒绝了这次更改")
+        lastError = succeeded ? nil : (error.map { "充电上限设置失败：\($0.localizedDescription)，请稍后重试。" } ?? "系统拒绝了这次更改，请稍后重试。")
         refresh()
     }
 }

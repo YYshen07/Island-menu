@@ -11,9 +11,9 @@ mkdir -p "$OUT"
 window() {
     swift - <<'SWIFT'
 import CoreGraphics
-let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
+let list = (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]]) ?? []
 for w in list where (w["kCGWindowOwnerName"] as? String) == "Island Menu" {
-    if let b = w["kCGWindowBounds"] as? [String: Any], (b["Height"] as? Double ?? 0) > 300, (b["Width"] as? Double ?? 0) == 560 { print(w["kCGWindowNumber"]!) }
+    if let b = w["kCGWindowBounds"] as? [String: Any], (b["Height"] as? Double ?? 0) > 300, (b["Width"] as? Double ?? 0) == 560, let id = w["kCGWindowNumber"] { print(id) }
 }
 SWIFT
 }

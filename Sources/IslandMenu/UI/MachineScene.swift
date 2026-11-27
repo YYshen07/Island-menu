@@ -376,16 +376,16 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         motion.withLock {
             $0.isPartying = partying
             $0.isMirror = mirror
+            if mirror, !partying { $0.logo?.setValue(NSNumber(value: Float(Self.sweepStart)), forKey: Self.sweepKey) }
         }
-        if mirror, !partying { logo?.setValue(NSNumber(value: Float(Self.sweepStart)), forKey: Self.sweepKey) }
     }
 
-    /// Sets the turntable angle directly, in turns (0 = lid facing the camera).
     /// Places the mirror logo's glint directly, 0 to 1 across the logo; for offscreen previews.
     func setGlint(_ position: Double) {
         logo?.setValue(NSNumber(value: Float(Self.sweepStart + (Self.sweepEnd - Self.sweepStart) * position)), forKey: Self.sweepKey)
     }
 
+    /// Sets the turntable angle directly, in turns (0 = lid facing the camera).
     func setTurn(_ turns: Double) {
         motion.withLock { $0.turntable?.eulerAngles.y = CGFloat(turns * 2 * .pi) }
     }
@@ -394,7 +394,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         motion.withLock { motion in
             defer { motion.lastTime = time }
             guard let lastTime = motion.lastTime else { return }
-            let elapsed = min(time - lastTime, 0.1)
+            let elapsed = max(0, min(time - lastTime, 0.1))
             if motion.isPartying, motion.isMirror {
                 // One pass of the glint, then a pause, like the foil on a trading card.
                 let phase = min(time.truncatingRemainder(dividingBy: Self.sweepPeriod) / Self.sweepTravel, 1)

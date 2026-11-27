@@ -29,7 +29,7 @@ final class FanController: ObservableObject {
     private var connection: NSXPCConnection?
     private var timer: DispatchSourceTimer?
     private var lastSent: [Double] = []
-    private var lastSentAt = Date.distantPast
+    private var lastSentAt: TimeInterval = -.infinity
     private var modeObserver: AnyCancellable?
 
     private init() {
@@ -127,21 +127,25 @@ final class FanController: ObservableObject {
         }
         let speeds = reading.fans.map { $0.minimum + ($0.maximum - $0.minimum) * level }
         let changed = lastSent.count != speeds.count || zip(lastSent, speeds).contains { abs($0 - $1) > Self.deadband }
-        let renewalDue = Date().timeIntervalSince(lastSentAt) > FanHelper.watchdogInterval / 3
+        let now = ProcessInfo.processInfo.systemUptime
+        let renewalDue = now - lastSentAt > FanHelper.watchdogInterval / 3
         guard changed || renewalDue else { return }
         lastSent = speeds
-        lastSentAt = Date()
+        lastSentAt = now
         helper()?.setFanSpeeds(speeds) { [weak self] succeeded in
             guard !succeeded else { return }
-            Task { @MainActor in self?.helperState = .unavailable("风扇拒绝了转速指令") }
+            Task { @MainActor in self?.helperState = .unavailable("风扇拒绝了转速指令，请点击重试或检查系统设置里的登录项。") }
         }
     }
 
     /// Hands the fans back before the app exits. The helper's watchdog covers a crash.
     func shutdown() {
         timer?.cancel()
-        guard helperState == .ready else { return }
-        helper()?.releaseFans { _ in }
+        timer = nil
+        guard helperState == .ready, let proxy = helper() else { return }
+        let done = DispatchSemaphore(value: 0)
+        proxy.releaseFans { _ in done.signal() }
+        _ = done.wait(timeout: .now() + 0.5)
     }
 }
 

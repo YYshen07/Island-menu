@@ -44,6 +44,7 @@ final class IslandController {
     private var panel: IslandPanel?
     private var island: IslandGeometry?
     private var pendingShrink: DispatchWorkItem?
+    private var pendingTrim: DispatchWorkItem?
     private lazy var clickTap = IslandClickTap { [weak self] in self?.toggle() }
     private var lastToggle = Date.distantPast
     private var styleObserver: AnyCancellable?
@@ -86,6 +87,7 @@ final class IslandController {
     func setOpen(_ open: Bool) {
         guard open != state.isOpen, let panel else { return }
         pendingShrink?.cancel()
+        pendingTrim?.cancel()
         if open {
             engine.retainLive()
             if island?.style == .island { _ = interceptsIslandClicks }
@@ -101,7 +103,9 @@ final class IslandController {
                 self?.state.isMounted = false
                 // SceneKit and SwiftUI have just freed tens of megabytes in small blocks; without
                 // this the allocator keeps the emptied pages mapped and the footprint stays up.
-                DispatchQueue.main.asyncAfter(deadline: .now() + Self.trimDelay) { malloc_zone_pressure_relief(nil, 0) }
+                let trim = DispatchWorkItem { malloc_zone_pressure_relief(nil, 0) }
+                self?.pendingTrim = trim
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.trimDelay, execute: trim)
             }
             pendingShrink = shrink
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.closeDuration, execute: shrink)

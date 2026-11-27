@@ -27,7 +27,7 @@ struct StickerSettings: View {
             } header: {
                 Text("顶盖")
             } footer: {
-                Text("选一张图片，系统会像「信息」里做贴纸那样把主体抠出来。拖动贴纸摆放位置；下次展开卡片时机模上就会贴好。")
+                Text("选一张图片，系统会像「信息」里做贴纸那样把主体抠出来。拖动贴纸摆放位置，下次展开面板时机模上就会贴好。")
             }
             if let index = store.stickers.firstIndex(where: { $0.id == selection }) {
                 Section("选中的贴纸") {
@@ -123,8 +123,9 @@ private struct StickerHandle: View {
     private static let reach = 0.48
 
     var body: some View {
+        let aspect = sticker.aspect > 0 ? sticker.aspect : 1
         let longSide = lid.width * sticker.size
-        let size = sticker.aspect >= 1 ? CGSize(width: longSide, height: longSide / sticker.aspect) : CGSize(width: longSide * sticker.aspect, height: longSide)
+        let size = aspect >= 1 ? CGSize(width: longSide, height: longSide / aspect) : CGSize(width: longSide * aspect, height: longSide)
         Group {
             if let image { Image(decorative: image, scale: 1).resizable() } else { Color.gray }
         }

@@ -39,6 +39,18 @@ def thermal(name):
     return name.startswith(("Die_", "SSD_", "Battery_Cell_")) or name.endswith("_Housing")
 
 
+EXTERIOR = LID | {"Shell_Bottom", "Chassis_Rail", "Keyboard_Deck", "Keyboard",
+                  "Display_Notch", "Dynamic_Island"}
+
+
+def check_base_color(owner, material, rgb):
+    # Test each binding: an exterior material shared with the board is still an interior color.
+    if owner in EXTERIOR and material.replace(" ", "_") != "Machined_graphite_interior":
+        return
+    channels = tuple(rgb)[:3]
+    assert max(channels) - min(channels) <= .01 + 1e-8, (owner, material, tuple(channels))
+
+
 def dimensions(points):
     return [1000 * (max(p[i] for p in points) - min(p[i] for p in points)) for i in range(3)]
 
@@ -96,6 +108,9 @@ def check_source(base, expected, cutout, spec):
     if cutout == "Display_Notch":
         assert max(p.z for p in world_points(objects[cutout])) >= max(p.z for p in world_points(objects["Display"]))
     for obj in meshes:
+        for mat in obj.data.materials:
+            shader = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+            check_base_color(obj.name, mat.name, shader.inputs["Base Color"].default_value)
         assert all(abs(scale - 1) < 1e-5 for scale in obj.scale)
         if obj.name.endswith("_Rotor"):
             low, high = map(Vector, (obj.bound_box[0], obj.bound_box[6]))
@@ -117,6 +132,10 @@ def read_gltf(base, expected, cutout):
             continue
         primitives = g["meshes"][node["mesh"]]["primitives"]
         material_sets[name] = {g["materials"][p["material"]]["name"] for p in primitives}
+        for primitive in primitives:
+            mat = g["materials"][primitive["material"]]
+            rgb = mat["pbrMetallicRoughness"].get("baseColorFactor", [1, 1, 1, 1])
+            check_base_color(name, mat["name"], rgb)
         assert all(p.get("mode", 4) == 4 for p in primitives)
         count = sum(g["accessors"][p["indices"]]["count"]//3 for p in primitives)
         assert count > 0 and (not name.endswith("_Rotor") or count <= 3000)
@@ -162,6 +181,9 @@ def check_usdz(base, expected, cutout, spec):
             assert group.GetParent().GetName() == "Lid_Hinge"
         bindings = [UsdShade.MaterialBindingAPI(p).ComputeBoundMaterial()[0] for p in [mesh, *mesh.GetChildren()]]
         sets[name] = {m.GetPrim().GetName() for m in bindings if m}
+        for mat in filter(bool, bindings):
+            color = mat.ComputeSurfaceSource()[0].GetInput("diffuseColor")
+            check_base_color(name, mat.GetPrim().GetName(), color.Get())
         transform = xf.GetLocalToWorldTransform(mesh)
         points.extend(transform.Transform(p) for p in UsdGeom.Mesh(mesh).GetPointsAttr().Get())
     check_materials(sets)

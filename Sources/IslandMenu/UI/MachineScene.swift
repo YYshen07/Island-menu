@@ -10,11 +10,6 @@ import SceneKit
 final class MachineScene: NSObject, SCNSceneRendererDelegate {
     /// Chip regions; which of them exist depends on the model.
     private static let dieNodes = ["Die_Super", "Die_Perf", "Die_Eff", "Die_GPU"]
-    /// Internal materials that carry a hue in the model files, how bright their grey stand-in is
-    /// relative to the original's strongest channel, and the faint cool cast that reads as metal.
-    private static let tintedInternals: Set<String> = ["Solder_mask", "Brushed_copper"]
-    private static let neutralWeight: CGFloat = 0.8
-    private static let coolCast: CGFloat = 1.04
     /// Nodes that make up the coloured shell, and the materials on them that carry its colour.
     private static let shellNodes = ["Shell_Lid", "Shell_Bottom", "Chassis_Rail", "Keyboard_Deck"]
     private static let shellMaterials: Set<String> = ["Smoked_titanium", "Graphite", "Machined_graphite", "Bottom_case_opacity"]
@@ -99,7 +94,6 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         self.hasLogoLight = hasLogoLight
         self.screenContent = screen
         super.init()
-        neutraliseInternals()
         if let finish { paintShell(finish) }
         scene.background.contents = NSColor.clear
         // The file carries a showcase animation; poses here are driven by the app instead.
@@ -129,19 +123,6 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         node.position = SCNVector3((low.x + high.x) / 2, low.y - Self.screenLift, (low.z + high.z) / 2)
         node.eulerAngles = SCNVector3(CGFloat.pi / 2, 0, 0)
         display.addChildNode(node)
-    }
-
-    /// The internals are drawn in neutral greys and silvers so the only colour underneath is the
-    /// heat map and the fans. The model files give the board a green solder mask and the heat pipe
-    /// a copper tone; those are reduced to a grey of the same weight here.
-    private func neutraliseInternals() {
-        scene.rootNode.enumerateHierarchy { node, _ in
-            for material in node.geometry?.materials ?? [] where Self.tintedInternals.contains(material.name ?? "") {
-                guard let color = (material.diffuse.contents as? NSColor)?.usingColorSpace(.sRGB) else { continue }
-                let level = max(color.redComponent, color.greenComponent, color.blueComponent) * Self.neutralWeight
-                material.diffuse.contents = NSColor(srgbRed: level, green: level, blue: level * Self.coolCast, alpha: 1)
-            }
-        }
     }
 
     /// Recolours the anodised parts. Materials are copied first: the file shares some of them

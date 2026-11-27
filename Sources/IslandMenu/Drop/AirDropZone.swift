@@ -44,7 +44,7 @@ final class AirDropZone {
 
     private func show() {
         guard let screen = NSScreen.builtIn ?? NSScreen.main else { return }
-        let island = IslandGeometry(screen: screen)
+        let island = IslandGeometry(screen: screen, style: .current)
         let panel = self.panel ?? makePanel()
         let origin = NSPoint(x: island.midX - Self.size.width / 2, y: island.pillFrame.minY - Self.gapBelowIsland - Self.size.height)
         panel.setFrame(NSRect(origin: origin, size: Self.size), display: true)

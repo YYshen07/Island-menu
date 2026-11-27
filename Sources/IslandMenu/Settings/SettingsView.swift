@@ -149,6 +149,14 @@ private struct GeneralSettings: View {
                     }
                     .pickerStyle(.segmented).labelsHidden().frame(width: 160)
                 }
+                SettingRow(title: "屏幕形态", symbol: "macbook") {
+                    Picker("", selection: $preferences.islandStyle) {
+                        Text("自动").tag(IslandStyle?.none)
+                        Text("灵动岛").tag(IslandStyle?.some(.island))
+                        Text("刘海").tag(IslandStyle?.some(.notch))
+                    }
+                    .pickerStyle(.segmented).labelsHidden().frame(width: 200)
+                }
             }
             Section("启动") {
                 SettingRow(title: "登录时启动", symbol: "power") {

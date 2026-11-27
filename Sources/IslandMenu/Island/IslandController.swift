@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 final class IslandPanel: NSPanel {
@@ -10,6 +11,12 @@ final class IslandPanel: NSPanel {
 final class IslandState: ObservableObject {
     @Published var isOpen = false
     @Published var islandSize = CGSize(width: 120, height: 32)
+    /// Pill or notch, and where the closed shape and the open card start below the screen's top edge.
+    @Published var style = IslandStyle.island
+    var topInset: CGFloat = 0
+    var cardTopInset: CGFloat = 0
+    /// The display has no notch of its own, so the closed shape is drawn too.
+    var drawsNotch = false
     /// Opens the settings window; set by the app delegate.
     var showSettings: () -> Void = {}
     /// Height of the open card, reported by the view so clicks can be hit-tested against it.
@@ -35,6 +42,7 @@ final class IslandController {
     private var pendingShrink: DispatchWorkItem?
     private lazy var clickTap = IslandClickTap { [weak self] in self?.toggle() }
     private var lastToggle = Date.distantPast
+    private var styleObserver: AnyCancellable?
 
     init(engine: MetricsEngine) {
         self.engine = engine
@@ -60,7 +68,12 @@ final class IslandController {
         layout()
         panel.orderFrontRegardless()
         installMonitors()
-        clickTap.start(prompting: true)
+        // Only the system island reacts to clicks and has to be kept from them; a notch does nothing.
+        if IslandStyle.current == .island { clickTap.start(prompting: true) }
+        styleObserver = Preferences.shared.$islandStyle.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
+            self?.setOpen(false)
+            self?.layout()
+        }
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.layout() }
         }
@@ -71,7 +84,7 @@ final class IslandController {
         pendingShrink?.cancel()
         if open {
             engine.retainLive()
-            _ = interceptsIslandClicks
+            if island?.style == .island { _ = interceptsIslandClicks }
             layout(open: true)
             panel.makeKey()
             state.isOpen = true
@@ -88,9 +101,13 @@ final class IslandController {
 
     private func layout(open: Bool? = nil) {
         guard let panel, let screen = NSScreen.builtIn ?? NSScreen.main else { return }
-        let island = IslandGeometry(screen: screen)
+        let island = IslandGeometry(screen: screen, style: .current)
         self.island = island
         clickTap.update(island: island, screenFrame: screen.frame)
+        state.topInset = island.topInset
+        state.cardTopInset = island.cardTopInset
+        state.drawsNotch = island.isSimulated
+        state.style = island.style
         state.islandSize = island.size
         guard open ?? state.isOpen else { return panel.setFrame(island.closedFrame, display: true) }
         let width = Self.cardWidth + Self.shadowMargin * 2
@@ -138,8 +155,9 @@ final class IslandController {
             toggle()
             return true
         }
-        guard state.isOpen else { return false }
-        let top = island.screenTop - IslandGeometry.cardTopInset
+        // `--pin` keeps the card open through outside clicks, for scripted screenshots.
+        guard state.isOpen, !CommandLine.arguments.contains("--pin") else { return false }
+        let top = island.screenTop - island.cardTopInset
         let card = NSRect(x: island.midX - Self.cardWidth / 2, y: top - state.cardHeight, width: Self.cardWidth, height: state.cardHeight)
         guard !card.contains(point) else { return false }
         setOpen(false)

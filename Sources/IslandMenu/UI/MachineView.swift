@@ -49,6 +49,9 @@ struct MachineSection: View {
                         .overlay(Color.clear.contentShape(Rectangle())
                             .onTapGesture(count: 2) { machine.setLidOpen(!machine.isLidOpen) }
                             .onTapGesture { machine.flip() })
+                        .onReceive(NotificationCenter.default.publisher(for: .machineCommand)) { note in
+                            if note.object as? String == "lid" { machine.setLidOpen(!machine.isLidOpen) } else { machine.flip() }
+                        }
                 }
             }
             .frame(height: Self.modelHeight)

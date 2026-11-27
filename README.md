@@ -1,15 +1,28 @@
+<p align="center"><img src="docs/images/icon.png" width="128" alt="Island Menu"></p>
+
 # Island Menu
 
-常驻后台的 macOS 性能监控。点击 MacBook Pro（PROLED 机型）的灵动岛，会从药丸位置展开一张卡片，显示 CPU、内存、GPU、储存、电池、网络、进程和温度。
+常驻后台的 macOS 性能监控。点击 MacBook 的灵动岛或刘海，会从那里展开一张卡片，显示 CPU、内存、GPU、储存、电池、网络、进程和温度。
 
-项目处于早期开发阶段，目前只在 14 寸 M5 Pro（Mac17,13）上跑过。
+![展开的卡片：顶盖面、底面热力图、开盖姿态](docs/images/card.png)
+
+机模平时是静帧，单击翻面，双击开合屏幕：
+
+![机模翻面与开盖](docs/images/model.gif)
+
+| 卡片下半部分 | 刘海机型的版式 |
+|---|---|
+| ![进程、信仰灯与活跃热力图](docs/images/card-bottom.png) | ![从刘海展开的卡片](docs/images/notch.png) |
+
+项目处于早期开发阶段，目前只在 14 寸 M5 Pro（Mac17,13，macOS 27.3）上实际运行过。刘海版式是在这台机器上模拟出来的，
+还没有在真正的刘海机型或 macOS 27.2 上运行过。
 
 ## 现状
 
 已有：
 
 - 原生灵动岛提醒：CPU、GPU、温度、储存或电量越过设置里的阈值时，系统灵动岛右侧出现一个提醒，恢复后自动消失；点开有简短说明和「展开面板」
-- 完整面板：从灵动岛位置展开的卡片
+- 完整面板：从灵动岛位置展开的卡片；刘海机型上从刘海展开，顶边与边框相连（设置里可手动切换版式）
 - CPU 每核占用、内存、储存、GPU 占用与显存、电池、网络速率与接口、公共 IP、进程排行
 - 芯片、SSD、电池温度，风扇转速
 - 3D 机模：展开时随机显示顶盖（发光 logo）或底面（温度热力图、风扇与气流），单击翻面，双击开合屏幕
@@ -30,7 +43,9 @@
 
 ## 构建
 
-需要 macOS 27.3 或更新版本、Xcode 27.3（测试版期间装在 `/Applications/Xcode-beta.app`）和 [XcodeGen](https://github.com/yonaskolb/XcodeGen)。
+构建需要 Xcode 27.3（测试版期间装在 `/Applications/Xcode-beta.app`）和 [XcodeGen](https://github.com/yonaskolb/XcodeGen)。
+
+构建出的 App 最低可在 macOS 27.0 上启动；灵动岛提醒依赖 macOS 27.3 的实时活动，更早的系统上没有提醒，其余功能不变。
 
 ```sh
 ./scripts/bundle.sh                 # 生成 build/Island Menu.app
@@ -53,7 +68,9 @@ open "build/Island Menu.app"
 
 - `Sources/IslandMenu/` — App 源码
 - `mockup/` — 网页设计稿（数据为模拟）
-- `docs/3d-model-brief.md` — 3D 机模制作说明
+- `docs/3d-model-brief.md`、`docs/3d-model-brief-lineup.md` — 3D 机模制作说明（现有机型、刘海机型全系）
+- `docs/images/` — 本页的截图，由 `scripts/screenshots.sh` 生成
+- `assets/icon/` — App 图标，由 `scripts/make_icns.sh` 生成
 - `assets/model/` — 3D 机模（Blender 源文件与导出的 USDZ / GLB）
 
 ## 许可

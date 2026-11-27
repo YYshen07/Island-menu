@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "IslandMenu",
-    platforms: [.macOS("27.3")],
+    platforms: [.macOS("27.0")],
     targets: [
         .target(
             name: "IslandShared",

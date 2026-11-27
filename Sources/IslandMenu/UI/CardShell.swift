@@ -34,6 +34,50 @@ struct CardBackground: View {
     }
 }
 
+private enum NotchMetrics {
+    /// Bottom corner radius of the hardware notch.
+    static let closedRadius: CGFloat = 9
+    /// Radius of the concave corners that join the shape to the bezel.
+    static let closedEar: CGFloat = 6
+    static let openEar: CGFloat = 14
+}
+
+/// Outline of the card. For the island it is a rounded rectangle floating below the bezel. For a
+/// notch it hangs from the top edge: square at the top, flared into the bezel by two concave
+/// "ears" that sit outside the rect, and rounded at the bottom.
+struct CardShape: Shape {
+    var notch: Bool
+    var radius: CGFloat
+    var ear: CGFloat
+    /// The outline without the top edge, which lies on the bezel and must not be stroked.
+    var open = false
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(radius, ear) }
+        set { radius = newValue.first; ear = newValue.second }
+    }
+
+    var outline: CardShape { CardShape(notch: notch, radius: radius, ear: ear, open: notch) }
+
+    func path(in rect: CGRect) -> Path {
+        guard notch else { return RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect) }
+        let radius = min(radius, rect.height - ear, rect.width / 2)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX - ear, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.minY + ear), control: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - radius))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + radius, y: rect.maxY), control: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.maxY - radius), control: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + ear))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX + ear, y: rect.minY), control: CGPoint(x: rect.maxX, y: rect.minY))
+        if !open { path.closeSubpath() }
+        return path
+    }
+}
+
+private enum ScrollAnchor { case card }
+
 private struct ContentHeightKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
@@ -51,17 +95,29 @@ struct IslandRootView: View {
         GeometryReader { proxy in
             let open = state.isOpen
             let island = state.islandSize
-            let topInset = open ? IslandGeometry.cardTopInset : IslandGeometry.topInset
-            let header = island.height + IslandGeometry.topInset - IslandGeometry.cardTopInset + Self.headroom
-            let limit = proxy.size.height - IslandGeometry.cardTopInset - Self.bottomGap
+            let notch = state.style == .notch
+            let topInset = open ? state.cardTopInset : state.topInset
+            let header = island.height + state.topInset - state.cardTopInset + Self.headroom
+            let limit = proxy.size.height - state.cardTopInset - Self.bottomGap
             let cardHeight = min(contentHeight + header, limit)
             let _ = (state.cardHeight = cardHeight)
             let size = open ? CGSize(width: IslandController.cardWidth, height: cardHeight) : island
-            let shape = RoundedRectangle(cornerRadius: open ? Theme.cardRadius : island.height / 2, style: .continuous)
-            ScrollView(.vertical, showsIndicators: false) {
-                CardView()
-                    .frame(width: IslandController.cardWidth)
-                    .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
+            let shape = CardShape(notch: notch, radius: open ? Theme.cardRadius : (notch ? NotchMetrics.closedRadius : island.height / 2),
+                                  ear: notch ? (open ? NotchMetrics.openEar : NotchMetrics.closedEar) : 0)
+            // A notch is black hardware, so the black shape can stay drawn while closed and the card
+            // grows straight out of it. The system island has to show through instead.
+            let surfaceVisible = open || (notch && state.drawsNotch)
+            ScrollViewReader { scroller in
+                ScrollView(.vertical, showsIndicators: false) {
+                    CardView()
+                        .frame(width: IslandController.cardWidth)
+                        .background(GeometryReader { Color.clear.preference(key: ContentHeightKey.self, value: $0.size.height) })
+                        .id(ScrollAnchor.card)
+                }
+                // `islandmenu://bottom` and `islandmenu://top`, for scripted screenshots.
+                .onReceive(NotificationCenter.default.publisher(for: .scrollCommand)) { note in
+                    withAnimation(Theme.spring) { scroller.scrollTo(ScrollAnchor.card, anchor: note.object as? String == "bottom" ? .bottom : .top) }
+                }
             }
             .padding(.top, header)
             .overlay(alignment: .topLeading) {
@@ -81,13 +137,13 @@ struct IslandRootView: View {
             .opacity(open ? 1 : 0)
             .allowsHitTesting(open)
             .frame(width: size.width, height: size.height, alignment: .top)
-            .background(CardBackground())
+            .background(CardBackground().padding(.horizontal, -NotchMetrics.openEar))
             .clipShape(shape)
-            .overlay(shape.stroke(.white.opacity(0.1), lineWidth: 1))
-            .shadow(color: .black.opacity(0.4), radius: 30, y: 18)
+            .overlay(shape.outline.stroke(.white.opacity(open ? 0.1 : 0), lineWidth: 1))
+            .shadow(color: .black.opacity(open ? 0.4 : 0), radius: 30, y: 18)
             .animation(Theme.spring, value: open)
             // Closed, the system island must show through, so the surface only exists while open.
-            .opacity(open ? 1 : 0)
+            .opacity(surfaceVisible ? 1 : 0)
             .animation(open ? .easeOut(duration: 0.08) : .easeIn(duration: 0.12).delay(0.3), value: open)
             .padding(.top, topInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

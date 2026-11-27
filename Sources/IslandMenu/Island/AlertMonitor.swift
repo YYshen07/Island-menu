@@ -4,6 +4,8 @@ import IslandShared
 
 /// Watches a few readings in the background and raises a Live Activity in the Dynamic Island while
 /// one of them is over the limit set in settings. Nothing is shown the rest of the time.
+/// Live Activities reach the Mac in macOS 27.3; earlier systems run without alerts.
+@available(macOS 27.3, *)
 @MainActor
 final class AlertMonitor {
     private static let interval: TimeInterval = 5

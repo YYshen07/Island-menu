@@ -11,6 +11,13 @@ macOS performance monitor that expands out of the Dynamic Island on the PROLED M
 - Build a distributable zip: `./scripts/package.sh` → `build/IslandMenu-<version>.zip`
 - Toggle the card from a script: `pkill -USR1 -x IslandMenu`. Do not post synthetic mouse clicks to test it;
   the machine is in use and a stray click lands in whatever app is in front.
+- Script the card for screenshots: launch with `--pin` (outside clicks do not close it), then
+  `open -g -a "$PWD/build/Island Menu.app" islandmenu://flip` (also `lid`, `top`, `bottom`). Always pass `-a`:
+  without it LaunchServices may start the copy in /Applications. `scripts/screenshots.sh <dir> [--notch]` does the
+  whole README set, capturing only the card's window (`screencapture -l`), so nothing else on screen leaks in.
+  Crop out the network section before publishing: it shows the public and Tailscale IPs.
+- Notch layout on this machine: `--notch` (or settings → 屏幕形态). The cutout here is a 59 pt camera hole, so the
+  app draws a 185 x 32 pt stand-in notch. Not yet run on real notch hardware or on macOS 27.2.
 - Quit: `pkill -x IslandMenu` (or the menu bar icon → 退出)
 
 No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`.
@@ -80,8 +87,11 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
 
 ## Conventions
 
-- The target is the Dynamic Island (a floating pill below the top edge), not a notch. The card is a
-  floating rounded rectangle that morphs out of the pill; closed, the app draws nothing over the island.
+- Two layouts (`IslandStyle`): the Dynamic Island (a floating pill; the card is a floating rounded rectangle and
+  the app draws nothing over the island while closed) and the notch (the card hangs from the bezel with a square
+  top and concave ears, `CardShape`). Auto-detection uses the logo light: only PROLED machines have one.
+- The deployment target is macOS 27.0 so notch machines on 27.2 can run it; anything from the 27.3 SDK
+  (ActivityKit, `AlertMonitor`) must sit behind `#available(macOS 27.3, *)`.
 - Island clicks are handled by `NSEvent` monitors in `IslandController`, not SwiftUI gestures; the
   closed panel is fully transparent and SwiftUI would never see the click.
 - The fast sampling loop must only run while the card is open. Closed, only the 60 s activity tick runs.

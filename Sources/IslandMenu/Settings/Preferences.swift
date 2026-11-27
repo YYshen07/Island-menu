@@ -49,6 +49,7 @@ final class Preferences: ObservableObject {
         static let awakeBrightness = "awakeBrightness"
         static let alertRules = "alertRules"
         static let colorful = "colorful"
+        static let islandStyle = "islandStyle"
     }
 
     private let defaults = UserDefaults.standard
@@ -71,6 +72,11 @@ final class Preferences: ObservableObject {
     }
 
     /// Whether modules use their accent colours; off is the all-white look.
+    /// Island or notch layout; nil follows the hardware.
+    @Published var islandStyle: IslandStyle? {
+        didSet { defaults.set(islandStyle?.rawValue, forKey: Key.islandStyle) }
+    }
+
     @Published var colorful: Bool {
         didSet { defaults.set(colorful, forKey: Key.colorful) }
     }
@@ -109,6 +115,7 @@ final class Preferences: ObservableObject {
         chargeLimit = defaults.object(forKey: Key.chargeLimit) as? Int ?? Self.defaultChargeLimit
         awakeBrightness = defaults.object(forKey: Key.awakeBrightness) as? Double ?? Self.defaultAwakeBrightness
         colorful = defaults.object(forKey: Key.colorful) as? Bool ?? true
+        islandStyle = defaults.string(forKey: Key.islandStyle).flatMap(IslandStyle.init)
         let storedRules = defaults.data(forKey: Key.alertRules).flatMap { try? JSONDecoder().decode([String: AlertRule].self, from: $0) } ?? [:]
         alertRules = Self.defaultAlertRules.merging(storedRules.compactMap { key, rule in AlertKind(rawValue: key).map { ($0, rule) } }) { _, stored in stored }
     }

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import IslandShared
 
 /// When an alert of one kind is raised.
@@ -50,6 +50,9 @@ final class Preferences: ObservableObject {
         static let alertRules = "alertRules"
         static let colorful = "colorful"
         static let islandStyle = "islandStyle"
+        static let machineModel = "machineModel"
+        static let machineFinish = "machineFinish"
+        static let customFinish = "customFinish"
     }
 
     private let defaults = UserDefaults.standard
@@ -75,6 +78,23 @@ final class Preferences: ObservableObject {
     /// Island or notch layout; nil follows the hardware.
     @Published var islandStyle: IslandStyle? {
         didSet { defaults.set(islandStyle?.rawValue, forKey: Key.islandStyle) }
+    }
+
+    /// Which 3D model to show; nil follows the hardware.
+    @Published var machineModel: MachineModel? {
+        didSet { defaults.set(machineModel?.rawValue, forKey: Key.machineModel) }
+    }
+
+    @Published var machineFinish: MachineFinish {
+        didSet { defaults.set(machineFinish.rawValue, forKey: Key.machineFinish) }
+    }
+
+    /// The colour behind `MachineFinish.custom`, stored as sRGB components.
+    @Published var customFinish: NSColor {
+        didSet {
+            guard let rgb = customFinish.usingColorSpace(.sRGB) else { return }
+            defaults.set([rgb.redComponent, rgb.greenComponent, rgb.blueComponent].map(Double.init), forKey: Key.customFinish)
+        }
     }
 
     @Published var colorful: Bool {
@@ -116,6 +136,10 @@ final class Preferences: ObservableObject {
         awakeBrightness = defaults.object(forKey: Key.awakeBrightness) as? Double ?? Self.defaultAwakeBrightness
         colorful = defaults.object(forKey: Key.colorful) as? Bool ?? true
         islandStyle = defaults.string(forKey: Key.islandStyle).flatMap(IslandStyle.init)
+        machineModel = defaults.string(forKey: Key.machineModel).flatMap(MachineModel.init)
+        machineFinish = defaults.string(forKey: Key.machineFinish).flatMap(MachineFinish.init) ?? .standard
+        let rgb = defaults.array(forKey: Key.customFinish) as? [Double] ?? []
+        customFinish = rgb.count == 3 ? NSColor(srgbRed: rgb[0], green: rgb[1], blue: rgb[2], alpha: 1) : NSColor(srgbRed: 0.35, green: 0.2, blue: 0.3, alpha: 1)
         let storedRules = defaults.data(forKey: Key.alertRules).flatMap { try? JSONDecoder().decode([String: AlertRule].self, from: $0) } ?? [:]
         alertRules = Self.defaultAlertRules.merging(storedRules.compactMap { key, rule in AlertKind(rawValue: key).map { ($0, rule) } }) { _, stored in stored }
     }

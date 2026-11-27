@@ -8,9 +8,12 @@ import SceneKit
 /// It is drawn on demand: frames are produced only while something is actually moving.
 @MainActor
 final class MachineScene: NSObject, SCNSceneRendererDelegate {
-    nonisolated static let resourceName = "macbook-pro-14"
+    /// Chip regions; which of them exist depends on the model.
+    private static let dieNodes = ["Die_Super", "Die_Perf", "Die_Eff", "Die_GPU"]
+    /// Nodes that make up the coloured shell, and the materials on them that carry its colour.
+    private static let shellNodes = ["Shell_Lid", "Shell_Bottom", "Chassis_Rail", "Keyboard_Deck"]
+    private static let shellMaterials: Set<String> = ["Smoked_titanium", "Graphite", "Machined_graphite", "Bottom_case_opacity"]
     private static let bottomOpacity: CGFloat = 0.1
-    private static let ghostOpacity: CGFloat = 0.25
     private static let cameraDistance: CGFloat = 0.72
     private static let tilt: CGFloat = -0.2
     private static let lidOpenAngle: CGFloat = 108 * .pi / 180
@@ -46,7 +49,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     _surface.emission = float4(sheen + band, sheen + band, sheen + band, 1.0);
     """
     /// Whether the logo is a light (PROLED machines) or polished metal.
-    private let hasLogoLight = Hardware.hasLogoLight
+    private let hasLogoLight: Bool
 
     let scene: SCNScene
     let camera = SCNNode()
@@ -75,10 +78,18 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     /// Everything SceneKit's render thread animates sits behind a lock.
     private let motion = OSAllocatedUnfairLock(initialState: Motion())
 
-    init?(url: URL? = Bundle.main.url(forResource: MachineScene.resourceName, withExtension: "usdz")) {
+    /// Loads the model for this Mac (or the one chosen in settings) in the chosen finish.
+    static func current() -> MachineScene? {
+        let model = MachineModel.current
+        return MachineScene(url: model.url, hasLogoLight: model.hasLogoLight, finish: Preferences.shared.machineFinish.color)
+    }
+
+    init?(url: URL?, hasLogoLight: Bool, finish: NSColor?) {
         guard let url, let scene = try? SCNScene(url: url, options: nil) else { return nil }
         self.scene = scene
+        self.hasLogoLight = hasLogoLight
         super.init()
+        if let finish { paintShell(finish) }
         scene.background.contents = NSColor.clear
         // The file carries a showcase animation; poses here are driven by the app instead.
         scene.rootNode.enumerateHierarchy { node, _ in node.removeAllAnimations() }
@@ -87,6 +98,19 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         addCameraAndLights()
         let startAngle: CGFloat = showsUnderside ? .pi : 0
         motion.withLock { $0.turntable?.eulerAngles.y = startAngle }
+    }
+
+    /// Recolours the anodised parts. Materials are copied first: the file shares some of them
+    /// with internal parts, which keep their own colour.
+    private func paintShell(_ color: NSColor) {
+        for name in Self.shellNodes {
+            guard let geometry = geometryNode(name)?.geometry else { continue }
+            geometry.materials = geometry.materials.map { material in
+                guard Self.shellMaterials.contains(material.name ?? ""), let copy = material.copy() as? SCNMaterial else { return material }
+                copy.diffuse.contents = color
+                return copy
+            }
+        }
     }
 
     private func geometryNode(_ name: String) -> SCNNode? {
@@ -124,14 +148,6 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             material.transparent.contents = Self.bottomOpacity
             material.writesToDepthBuffer = false
         }
-        // In the model the chips sit on the lid side of the board. Seen from underneath they would be
-        // hidden, so the board and package are ghosted, and the etched label (mirrored from here) dropped.
-        for name in ["Board", "SoC_Package"] {
-            for material in geometryNode(name)?.geometry?.materials ?? [] {
-                material.transparent.contents = material.name == "Laser_etch" ? 0 : Self.ghostOpacity
-                material.writesToDepthBuffer = false
-            }
-        }
     }
 
     /// Re-parents the model so it stands upright facing the camera (lid forward, hinge down, which
@@ -158,7 +174,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
 
     /// Heat map and airflow live in the body's own space, so they turn and tilt with it.
     private func addEffects(bodyLow: SCNVector3, bodyHigh: SCNVector3) {
-        let names = ["Die_Super", "Die_Perf", "Die_GPU", "SSD_0", "SSD_1"] + (0..<6).map { "Battery_Cell_\($0)" }
+        let names = Self.dieNodes + ["SSD_0", "SSD_1"] + (0..<6).map { "Battery_Cell_\($0)" }
         for name in names {
             guard let part = geometryNode(name) else { continue }
             let (low, high) = part.boundingBox
@@ -275,7 +291,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     /// Pushes a sample onto the model.
     func apply(thermal: ThermalSnapshot, fans: [FanSnapshot], logoLevel: Double) {
         // The die sensors are not mapped to individual clusters, so all three regions share the mean.
-        for name in ["Die_Super", "Die_Perf", "Die_GPU"] { spots[name]?.temperature = thermal.dieMean }
+        for name in Self.dieNodes { spots[name]?.temperature = thermal.dieMean }
         for name in ["SSD_0", "SSD_1"] { spots[name]?.temperature = thermal.ssd }
         for index in 0..<6 { spots["Battery_Cell_\(index)"]?.temperature = thermal.battery }
         let heatChanged = heatMap?.update(spots.keys.sorted().compactMap { spots[$0] }) ?? false

@@ -40,7 +40,12 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
 
 ## 3D model
 
-- `bundle.sh` copies `assets/model/macbook-pro-14.usdz` into the app's `Contents/Resources`. A plain
+- Five bodies (`MachineModel`): PROLED Pro 14, notch Pro 14 and 16, Air 13 and 15. The app picks one from the
+  hardware (logo light, fans, panel diagonal) unless settings override it; `MachineFinish` recolours the shell.
+  Nodes differ per body (no `Fan_*`/`Heatpipe` on the Airs, `Die_Eff` instead of `Die_Super` on notch Pros), so
+  look parts up optionally. Only the PROLED body has a lit logo; the rest get the mirror shader.
+- Preview any of them: `--render-model assets/model/macbook-air-15.usdz out.png --finish skyBlue 0`.
+- `bundle.sh` copies the five `assets/model/*.usdz` into the app's `Contents/Resources`. A plain
   `swift build` binary has no model and the machine section renders without it.
 - Check camera and lighting without launching the UI:
   `.build/debug/IslandMenu --render-model assets/model/macbook-pro-14.usdz /tmp/model.png`

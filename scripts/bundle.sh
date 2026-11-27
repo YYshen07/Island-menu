@@ -21,7 +21,10 @@ mkdir -p "$APP/Contents/Library/LaunchDaemons"
 cp Resources/dev.yan.islandmenu.helper.plist "$APP/Contents/Library/LaunchDaemons/"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources"
-cp assets/model/macbook-pro-14.usdz "$APP/Contents/Resources/"
+# One model per body; the app picks the one matching the Mac it runs on.
+for model in macbook-pro-14 macbook-pro-14-notch macbook-pro-16-notch macbook-air-13 macbook-air-15; do
+    cp "assets/model/$model.usdz" "$APP/Contents/Resources/"
+done
 cp assets/icon/AppIcon.icns "$APP/Contents/Resources/"
 IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)}"
 mkdir -p "$APP/Contents/PlugIns"

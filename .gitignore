@@ -6,7 +6,8 @@ refs/
 .devin/*.local.json
 # Local-only: machine-specific agent config, third-party Blender add-on, private sketches
 .devin/
-tools/
+tools/*
+!tools/check_island_model.py
 IMG_*.PNG
 assets/reference/
 # Blender scratch files

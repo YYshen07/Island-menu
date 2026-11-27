@@ -68,7 +68,7 @@ struct MachineSection: View {
         .frame(maxWidth: .infinity)
         .onChange(of: state.isOpen, initial: true) { _, open in
             if open {
-                if machine == nil { machine = MachineScene() }
+                if machine == nil { machine = MachineScene.current() }
             } else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Self.releaseDelay) {
                     if !state.isOpen { machine = nil }

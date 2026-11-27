@@ -138,6 +138,9 @@ private struct GeneralSettings: View {
     @EnvironmentObject private var preferences: Preferences
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
+    private var customFinish: Binding<Color> {
+        Binding(get: { Color(nsColor: preferences.customFinish) }, set: { preferences.customFinish = NSColor($0) })
+    }
 
     var body: some View {
         Form {
@@ -156,6 +159,26 @@ private struct GeneralSettings: View {
                         Text("刘海").tag(IslandStyle?.some(.notch))
                     }
                     .pickerStyle(.segmented).labelsHidden().frame(width: 200)
+                }
+            }
+            Section("机模") {
+                SettingRow(title: "机型", symbol: "laptopcomputer") {
+                    Picker("", selection: $preferences.machineModel) {
+                        Text("自动（\(MachineModel.detected.title)）").tag(MachineModel?.none)
+                        ForEach(MachineModel.allCases) { Text($0.title).tag(MachineModel?.some($0)) }
+                    }
+                    .labelsHidden().frame(width: 260)
+                }
+                SettingRow(title: "颜色", symbol: "paintbrush") {
+                    HStack(spacing: 8) {
+                        if preferences.machineFinish == .custom {
+                            ColorPicker("", selection: customFinish, supportsOpacity: false).labelsHidden()
+                        }
+                        Picker("", selection: $preferences.machineFinish) {
+                            ForEach(MachineFinish.allCases) { Text($0.title).tag($0) }
+                        }
+                        .labelsHidden().frame(width: 130)
+                    }
                 }
             }
             Section("启动") {

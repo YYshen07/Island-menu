@@ -155,7 +155,7 @@ open "build/Island Menu.app"
 
 - 「音跃」模式会读取系统正在播放的声音的响度，需要「系统音频录制」权限；只计算响度，不录制、不保存。
 - 贴纸和上传的屏幕图片只保存在本机 `~/Library/Application Support/IslandMenu/`，抠图由系统在本机完成。
-- 公共 IP 通过 `api.ipify.org` 查询，只在卡片展开时触发，最多每 10 分钟一次。
+- 公共 IP 默认不显示。在设置里打开后，通过 `api.ipify.org` 查询，只在面板展开时触发，最多每 10 分钟一次。
 - 活跃时长和储存用量历史保存在本机 `~/Library/Application Support/IslandMenu/history.json`，不上传。
 
 ## 目录

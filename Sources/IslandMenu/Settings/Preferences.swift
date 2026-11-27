@@ -128,7 +128,8 @@ final class Preferences: ObservableObject {
         fanMode = defaults.string(forKey: Key.fanMode).flatMap(FanMode.init) ?? .auto
         let stored = defaults.data(forKey: Key.fanCurve).flatMap { try? JSONDecoder().decode([FanCurvePoint].self, from: $0) }
         fanCurve = stored.flatMap { $0.count >= 2 ? $0 : nil } ?? Self.defaultCurve
-        showPublicIP = defaults.object(forKey: Key.showPublicIP) as? Bool ?? true
+        // Off unless asked for: showing it means querying a third-party service.
+        showPublicIP = defaults.object(forKey: Key.showPublicIP) as? Bool ?? false
         chargeLimit = defaults.object(forKey: Key.chargeLimit) as? Int ?? Self.defaultChargeLimit
         awakeBrightness = defaults.object(forKey: Key.awakeBrightness) as? Double ?? Self.defaultAwakeBrightness
         colorful = defaults.object(forKey: Key.colorful) as? Bool ?? true

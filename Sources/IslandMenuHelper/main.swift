@@ -37,7 +37,8 @@ final class FanService: NSObject, NSXPCListenerDelegate, FanHelperProtocol {
     }
 
     private func force(_ rpm: [Double]) -> Bool {
-        guard let smc, fanCount > 0 else { return false }
+        // The values come over XPC; anything that is not a plain number is refused outright.
+        guard let smc, fanCount > 0, !rpm.isEmpty, rpm.allSatisfy(\.isFinite) else { return false }
         var succeeded = true
         for index in 0..<fanCount {
             guard let minimum = smc.value("F\(index)Mn"), let maximum = smc.value("F\(index)Mx"), maximum > minimum else {

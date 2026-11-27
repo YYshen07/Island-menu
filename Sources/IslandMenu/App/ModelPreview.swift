@@ -7,11 +7,12 @@ import SceneKit
 enum ModelPreview {
     /// An optional trailing argument sets the turntable angle in turns (0.5 shows the underside);
     /// `--lid-open` renders the desk pose instead; `--no-logo --glint 0.5` shows the mirror logo mid-glint;
-    /// `--finish silver` (a `MachineFinish` name) recolours the shell.
+    /// `--finish silver` (a `MachineFinish` name) recolours the shell;
+    /// `--screen wallpaper --lid-open` lights the screen (a `ScreenContent` name).
     static func render(model: String, to output: String) -> Bool {
         let finish = CommandLine.arguments.firstIndex(of: "--finish").flatMap { MachineFinish(rawValue: CommandLine.arguments[$0 + 1]) }
         let lit = !CommandLine.arguments.contains("--no-logo") && model.hasSuffix("macbook-pro-14.usdz")
-        guard let machine = MachineScene(url: URL(fileURLWithPath: model), hasLogoLight: lit, finish: finish?.color), let device = MTLCreateSystemDefaultDevice() else { return false }
+        guard let machine = MachineScene(url: URL(fileURLWithPath: model), hasLogoLight: lit, finish: finish?.color, screen: CommandLine.arguments.firstIndex(of: "--screen").flatMap { ScreenContent(rawValue: CommandLine.arguments[$0 + 1]) } ?? .off), let device = MTLCreateSystemDefaultDevice() else { return false }
         let thermal = ThermalSnapshot(dieMax: 78, dieMean: 70, ssd: 48, battery: 36)
         machine.apply(thermal: thermal, fans: [FanSnapshot(rpm: 2400, minimum: 1200, maximum: 6000), FanSnapshot(rpm: 2600, minimum: 1200, maximum: 6000)], logoLevel: 1)
         if let turn = CommandLine.arguments.last.flatMap(Double.init) { machine.setTurn(turn) }

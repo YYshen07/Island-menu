@@ -41,7 +41,9 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
 ## 3D model
 
 - Five bodies (`MachineModel`): PROLED Pro 14, notch Pro 14 and 16, Air 13 and 15. The app picks one from the
-  hardware (logo light, fans, panel diagonal) unless settings override it; `MachineFinish` recolours the shell.
+  hardware (logo light, fans, panel diagonal) (not user-selectable; the hidden `machineModel` default previews another).
+  Settings → 机模 only changes the shell colour (`MachineFinish`, grouped Pro / Air / Neo) and the open screen's
+  picture (`ScreenContent`; the panel mesh has no UVs, so the picture is a plane laid over it on first lid open).
   Nodes differ per body (no `Fan_*`/`Heatpipe` on the Airs, `Die_Eff` instead of `Die_Super` on notch Pros), so
   look parts up optionally. Only the PROLED body has a lit logo; the rest get the mirror shader.
 - Preview any of them: `--render-model assets/model/macbook-air-15.usdz out.png --finish skyBlue 0`.

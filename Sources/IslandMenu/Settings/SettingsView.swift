@@ -3,12 +3,16 @@ import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
+    /// `--settings-tab machine` (general, machine, alerts, fan, battery) opens on that tab, for screenshots.
+    @State private var tab = CommandLine.arguments.firstIndex(of: "--settings-tab").map { CommandLine.arguments[$0 + 1] } ?? "general"
+
     var body: some View {
-        TabView {
-            GeneralSettings().tabItem { Label("通用", systemImage: "gearshape") }
-            AlertSettings().tabItem { Label("提醒", systemImage: "bell.badge") }
-            if Hardware.hasFans { FanSettings().tabItem { Label("风扇", systemImage: "fan") } }
-            BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }
+        TabView(selection: $tab) {
+            GeneralSettings().tabItem { Label("通用", systemImage: "gearshape") }.tag("general")
+            MachineSettings().tabItem { Label("机模", systemImage: "laptopcomputer") }.tag("machine")
+            AlertSettings().tabItem { Label("提醒", systemImage: "bell.badge") }.tag("alerts")
+            if Hardware.hasFans { FanSettings().tabItem { Label("风扇", systemImage: "fan") }.tag("fan") }
+            BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }.tag("battery")
         }
         .frame(width: 520)
     }
@@ -138,14 +142,11 @@ private struct GeneralSettings: View {
     @EnvironmentObject private var preferences: Preferences
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
-    private var customFinish: Binding<Color> {
-        Binding(get: { Color(nsColor: preferences.customFinish) }, set: { preferences.customFinish = NSColor($0) })
-    }
 
     var body: some View {
         Form {
-            Section("外观") {
-                SettingRow(title: "配色", symbol: "paintpalette") {
+            Section("卡片") {
+                SettingRow(title: "图表配色", symbol: "paintpalette") {
                     Picker("", selection: $preferences.colorful) {
                         Text("彩色").tag(true)
                         Text("纯白").tag(false)
@@ -159,26 +160,6 @@ private struct GeneralSettings: View {
                         Text("刘海").tag(IslandStyle?.some(.notch))
                     }
                     .pickerStyle(.segmented).labelsHidden().frame(width: 200)
-                }
-            }
-            Section("机模") {
-                SettingRow(title: "机型", symbol: "laptopcomputer") {
-                    Picker("", selection: $preferences.machineModel) {
-                        Text("自动（\(MachineModel.detected.title)）").tag(MachineModel?.none)
-                        ForEach(MachineModel.allCases) { Text($0.title).tag(MachineModel?.some($0)) }
-                    }
-                    .labelsHidden().frame(width: 260)
-                }
-                SettingRow(title: "颜色", symbol: "paintbrush") {
-                    HStack(spacing: 8) {
-                        if preferences.machineFinish == .custom {
-                            ColorPicker("", selection: customFinish, supportsOpacity: false).labelsHidden()
-                        }
-                        Picker("", selection: $preferences.machineFinish) {
-                            ForEach(MachineFinish.allCases) { Text($0.title).tag($0) }
-                        }
-                        .labelsHidden().frame(width: 130)
-                    }
                 }
             }
             Section("启动") {

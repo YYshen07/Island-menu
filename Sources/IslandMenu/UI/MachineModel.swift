@@ -46,7 +46,14 @@ enum MachineModel: String, CaseIterable, Identifiable {
 
 /// Body colour of the model. `standard` keeps the colour the model file was built with.
 enum MachineFinish: String, CaseIterable, Identifiable {
-    case standard, spaceBlack, spaceGray, silver, midnight, starlight, skyBlue, custom
+    case standard, spaceBlack, spaceGray, silver, midnight, starlight, skyBlue, blush, citrus, indigo
+
+    /// Apple's finishes grouped by the line they are sold on. Any of them can go on any body.
+    static let series: [(title: String, finishes: [MachineFinish])] = [
+        ("Pro 系列", [.spaceBlack, .spaceGray, .silver]),
+        ("Air 系列", [.midnight, .starlight, .skyBlue, .silver]),
+        ("Neo 系列", [.blush, .citrus, .indigo, .silver]),
+    ]
 
     var id: String { rawValue }
 
@@ -59,13 +66,15 @@ enum MachineFinish: String, CaseIterable, Identifiable {
         case .midnight: "午夜色"
         case .starlight: "星光色"
         case .skyBlue: "天蓝色"
-        case .custom: "自定义"
+        case .blush: "Blush"
+        case .citrus: "Citrus"
+        case .indigo: "Indigo"
         }
     }
 
     /// Base colour of the anodised shell, nil to leave the model's own. These are matched by eye
     /// to the scene's lighting, which is bright; they are not Apple's published values.
-    @MainActor var color: NSColor? {
+    var color: NSColor? {
         switch self {
         case .standard: nil
         case .spaceBlack: NSColor(srgbRed: 0.022, green: 0.022, blue: 0.024, alpha: 1)
@@ -74,7 +83,66 @@ enum MachineFinish: String, CaseIterable, Identifiable {
         case .midnight: NSColor(srgbRed: 0.03, green: 0.04, blue: 0.06, alpha: 1)
         case .starlight: NSColor(srgbRed: 0.38, green: 0.355, blue: 0.30, alpha: 1)
         case .skyBlue: NSColor(srgbRed: 0.28, green: 0.37, blue: 0.47, alpha: 1)
-        case .custom: Preferences.shared.customFinish
+        case .blush: NSColor(srgbRed: 0.50, green: 0.33, blue: 0.34, alpha: 1)
+        case .citrus: NSColor(srgbRed: 0.50, green: 0.47, blue: 0.20, alpha: 1)
+        case .indigo: NSColor(srgbRed: 0.12, green: 0.16, blue: 0.30, alpha: 1)
         }
+    }
+
+    /// How the finish looks under the scene's lights, for the swatch in settings.
+    var swatch: NSColor {
+        guard let base = color?.usingColorSpace(.sRGB) else { return .darkGray }
+        func lift(_ value: CGFloat) -> CGFloat { min(pow(value, 0.55) * 1.1, 1) }
+        return NSColor(srgbRed: lift(base.redComponent), green: lift(base.greenComponent), blue: lift(base.blueComponent), alpha: 1)
+    }
+}
+
+/// What the model's screen shows when its lid is opened.
+enum ScreenContent: String, CaseIterable, Identifiable {
+    case off, wallpaper, custom
+
+    private static let maxPixelWidth: CGFloat = 1280
+    /// Corner radius of the panel as a fraction of its width.
+    private static let cornerFraction: CGFloat = 0.022
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .off: "熄屏"
+        case .wallpaper: "当前壁纸"
+        case .custom: "自定义图片"
+        }
+    }
+
+    /// Where an uploaded picture is kept, so it survives the original being moved or deleted.
+    static var customImageURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("IslandMenu/screen-image")
+    }
+
+    @MainActor private var sourceURL: URL? {
+        switch self {
+        case .off: nil
+        case .wallpaper: (NSScreen.builtIn ?? NSScreen.main).flatMap { NSWorkspace.shared.desktopImageURL(for: $0) }
+        case .custom: Self.customImageURL
+        }
+    }
+
+    /// The picture scaled to fill a panel of the given aspect ratio (width / height), with the
+    /// panel's rounded corners cut off; nil when there is nothing to show.
+    @MainActor func image(aspect: CGFloat) -> CGImage? {
+        guard let url = sourceURL, let source = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil), aspect > 0 else { return nil }
+        let width = min(CGFloat(source.width), Self.maxPixelWidth).rounded()
+        let size = CGSize(width: width, height: (width / aspect).rounded())
+        guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        let radius = size.width * Self.cornerFraction
+        context.addPath(CGPath(roundedRect: CGRect(origin: .zero, size: size), cornerWidth: radius, cornerHeight: radius, transform: nil))
+        context.clip()
+        let scale = max(size.width / CGFloat(source.width), size.height / CGFloat(source.height))
+        let drawn = CGSize(width: CGFloat(source.width) * scale, height: CGFloat(source.height) * scale)
+        context.interpolationQuality = .high
+        context.draw(source, in: CGRect(x: (size.width - drawn.width) / 2, y: (size.height - drawn.height) / 2, width: drawn.width, height: drawn.height))
+        return context.makeImage()
     }
 }

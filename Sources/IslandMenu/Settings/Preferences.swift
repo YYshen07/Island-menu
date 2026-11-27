@@ -52,7 +52,7 @@ final class Preferences: ObservableObject {
         static let islandStyle = "islandStyle"
         static let machineModel = "machineModel"
         static let machineFinish = "machineFinish"
-        static let customFinish = "customFinish"
+        static let screenContent = "screenContent"
     }
 
     private let defaults = UserDefaults.standard
@@ -80,7 +80,8 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(islandStyle?.rawValue, forKey: Key.islandStyle) }
     }
 
-    /// Which 3D model to show; nil follows the hardware.
+    /// Which 3D model to show; nil follows the hardware. Not offered in settings (the model always
+    /// matches the Mac); `defaults write dev.yan.islandmenu machineModel macbook-air-15` previews another.
     @Published var machineModel: MachineModel? {
         didSet { defaults.set(machineModel?.rawValue, forKey: Key.machineModel) }
     }
@@ -89,12 +90,8 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(machineFinish.rawValue, forKey: Key.machineFinish) }
     }
 
-    /// The colour behind `MachineFinish.custom`, stored as sRGB components.
-    @Published var customFinish: NSColor {
-        didSet {
-            guard let rgb = customFinish.usingColorSpace(.sRGB) else { return }
-            defaults.set([rgb.redComponent, rgb.greenComponent, rgb.blueComponent].map(Double.init), forKey: Key.customFinish)
-        }
+    @Published var screenContent: ScreenContent {
+        didSet { defaults.set(screenContent.rawValue, forKey: Key.screenContent) }
     }
 
     @Published var colorful: Bool {
@@ -138,8 +135,7 @@ final class Preferences: ObservableObject {
         islandStyle = defaults.string(forKey: Key.islandStyle).flatMap(IslandStyle.init)
         machineModel = defaults.string(forKey: Key.machineModel).flatMap(MachineModel.init)
         machineFinish = defaults.string(forKey: Key.machineFinish).flatMap(MachineFinish.init) ?? .standard
-        let rgb = defaults.array(forKey: Key.customFinish) as? [Double] ?? []
-        customFinish = rgb.count == 3 ? NSColor(srgbRed: rgb[0], green: rgb[1], blue: rgb[2], alpha: 1) : NSColor(srgbRed: 0.35, green: 0.2, blue: 0.3, alpha: 1)
+        screenContent = defaults.string(forKey: Key.screenContent).flatMap(ScreenContent.init) ?? .off
         let storedRules = defaults.data(forKey: Key.alertRules).flatMap { try? JSONDecoder().decode([String: AlertRule].self, from: $0) } ?? [:]
         alertRules = Self.defaultAlertRules.merging(storedRules.compactMap { key, rule in AlertKind(rawValue: key).map { ($0, rule) } }) { _, stored in stored }
     }

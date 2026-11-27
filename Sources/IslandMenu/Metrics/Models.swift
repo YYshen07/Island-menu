@@ -48,6 +48,12 @@ struct BatterySnapshot {
     var charging = false
     var external = false
     var adapterWatts: Int?
+    /// Power drawn from the adapter right now, in watts; nil on battery or when the Mac does not report it.
+    var inputPower: Double?
+    /// What the whole machine is consuming, in watts.
+    var systemPower: Double?
+    /// Power into the battery in watts: positive while charging, negative while discharging.
+    var batteryPower: Double?
 }
 
 struct GPUSnapshot {

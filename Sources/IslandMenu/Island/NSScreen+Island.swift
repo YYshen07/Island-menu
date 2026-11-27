@@ -26,7 +26,7 @@ enum IslandStyle: String, CaseIterable {
         return Preferences.shared.islandStyle ?? detected
     }
 
-    @MainActor static let detected: IslandStyle = LogoLight.shared.isSupported ? .island : .notch
+    @MainActor static let detected: IslandStyle = Hardware.hasLogoLight ? .island : .notch
 }
 
 /// Where the island or notch sits. macOS has no API for the island's live size (it widens for

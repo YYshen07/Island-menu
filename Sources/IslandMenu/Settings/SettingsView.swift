@@ -7,7 +7,7 @@ struct SettingsView: View {
         TabView {
             GeneralSettings().tabItem { Label("通用", systemImage: "gearshape") }
             AlertSettings().tabItem { Label("提醒", systemImage: "bell.badge") }
-            FanSettings().tabItem { Label("风扇", systemImage: "fan") }
+            if Hardware.hasFans { FanSettings().tabItem { Label("风扇", systemImage: "fan") } }
             BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }
         }
         .frame(width: 520)

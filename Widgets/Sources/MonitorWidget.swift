@@ -57,7 +57,8 @@ private struct AlertSummary: View {
             Link(destination: IslandLink.openPanel) {
                 Text("展开面板").font(.system(size: 15, weight: .semibold))
                     .frame(maxWidth: .infinity, minHeight: 40)
-                    .background(Capsule().fill(.white.opacity(0.18)))
+                    // Follows the island's own corner curve, so the gap around the button is even.
+                    .background(ContainerRelativeShape().fill(.white.opacity(0.18)))
             }
         }
     }

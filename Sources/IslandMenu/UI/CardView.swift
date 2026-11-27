@@ -7,8 +7,10 @@ struct CardView: View {
         VStack(spacing: 0) {
             MachineSection()
             Hairline()
-            FanSection()
-            Hairline()
+            if Hardware.hasFans {
+                FanSection()
+                Hairline()
+            }
             CPUSection()
             Hairline()
             HStack(alignment: .top, spacing: 0) {
@@ -26,8 +28,10 @@ struct CardView: View {
             Hairline()
             ProcessSection()
             Hairline()
-            LogoLightSection()
-            Hairline()
+            if Hardware.hasLogoLight {
+                LogoLightSection()
+                Hairline()
+            }
             ActivitySection()
         }
         // Tints are read when a section draws, so switching appearance rebuilds the card.

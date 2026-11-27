@@ -89,6 +89,14 @@ struct BatterySection: View {
                     Text("\(battery.percent)%").value()
                 }
                 SegmentBar(segments: [(Double(battery.percent) / 100, battery.external ? Theme.live : Theme.primary)])
+                if battery.systemPower != nil || battery.batteryPower != nil {
+                    HStack(alignment: .top, spacing: 0) {
+                        power(battery.inputPower, "电源输入")
+                        power(battery.systemPower, "整机功耗")
+                        power(battery.batteryPower.map(abs), batteryPowerTitle(battery))
+                    }
+                    .padding(.top, 2)
+                }
                 if limiter.isSupported {
                     PillPicker(options: [(BatteryMode.auto, "自动"), (.care, "养护"), (.full, "满充")], selection: modeBinding, height: 26)
                         .padding(.top, 4)
@@ -112,6 +120,19 @@ struct BatterySection: View {
         case .care: "充到 \(preferences.chargeLimit)% 停止"
         case .full: "这一次充到 100%，之后回到 \(preferences.chargeLimit)%"
         }
+    }
+
+    private func power(_ watts: Double?, _ title: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(watts.map { String(format: "%.1f W", $0) } ?? "—").value()
+            Text(title).label()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func batteryPowerTitle(_ battery: BatterySnapshot) -> String {
+        guard let watts = battery.batteryPower, abs(watts) >= 0.05 else { return "电池" }
+        return watts > 0 ? "电池充电" : "电池放电"
     }
 
     private func summary(_ battery: BatterySnapshot) -> String {
@@ -183,7 +204,7 @@ struct LogoLightSection: View {
     ]
 
     var body: some View {
-        if light.isSupported {
+        if Hardware.hasLogoLight {
             VStack(alignment: .leading, spacing: 8) {
                 SectionHead(title: "信仰灯") { EmptyView() }
                 PillPicker(options: [(LogoMode.auto, "自动"), (.breathe, "呼吸"), (.audio, "音跃")], selection: modeBinding, height: 26)

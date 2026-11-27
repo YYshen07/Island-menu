@@ -6,12 +6,13 @@ import SceneKit
 @MainActor
 enum ModelPreview {
     /// An optional trailing argument sets the turntable angle in turns (0.5 shows the underside);
-    /// `--lid-open` renders the desk pose instead.
+    /// `--lid-open` renders the desk pose instead; `--no-logo --glint 0.5` shows the mirror logo mid-glint.
     static func render(model: String, to output: String) -> Bool {
         guard let machine = MachineScene(url: URL(fileURLWithPath: model)), let device = MTLCreateSystemDefaultDevice() else { return false }
         let thermal = ThermalSnapshot(dieMax: 78, dieMean: 70, ssd: 48, battery: 36)
         machine.apply(thermal: thermal, fans: [FanSnapshot(rpm: 2400, minimum: 1200, maximum: 6000), FanSnapshot(rpm: 2600, minimum: 1200, maximum: 6000)], logoLevel: 1)
         if let turn = CommandLine.arguments.last.flatMap(Double.init) { machine.setTurn(turn) }
+        if let flag = CommandLine.arguments.firstIndex(of: "--glint"), let position = Double(CommandLine.arguments[flag + 1]) { machine.setGlint(position) }
         if CommandLine.arguments.contains("--lid-open") { machine.setLidOpen(true, animated: false) }
         let renderer = SCNRenderer(device: device, options: nil)
         renderer.scene = machine.scene

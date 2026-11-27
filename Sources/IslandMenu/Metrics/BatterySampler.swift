@@ -21,6 +21,15 @@ struct BatterySampler {
         if snapshot.external, let watts = ((props["AdapterDetails"] as? [String: Any])?["Watts"] as? NSNumber)?.intValue, watts > 0 {
             snapshot.adapterWatts = watts
         }
+        // Signed values arrive as unsigned 64-bit numbers; `int64Value` restores the sign.
+        if let milliamps = (props["Amperage"] as? NSNumber)?.int64Value, let millivolts = int("Voltage") {
+            snapshot.batteryPower = Double(milliamps) * Double(millivolts) / 1_000_000
+        }
+        if let telemetry = props["PowerTelemetryData"] as? [String: Any] {
+            func watts(_ key: String) -> Double? { (telemetry[key] as? NSNumber).map { Double($0.int64Value) / 1000 } }
+            snapshot.systemPower = watts("SystemLoad")
+            if snapshot.external { snapshot.inputPower = watts("SystemPowerIn") }
+        }
         return snapshot
     }
 }

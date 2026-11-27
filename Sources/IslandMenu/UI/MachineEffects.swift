@@ -3,8 +3,9 @@ import SceneKit
 
 /// Thermal-camera colour for a temperature: blue when cool, through green and amber, to red.
 enum HeatRamp {
-    static let cool = 30.0
-    static let hot = 90.0
+    /// The span is kept to what the sensors actually cover in use, so a few degrees is a visible step.
+    static let cool = 35.0
+    static let hot = 80.0
 
     static func fraction(_ temperature: Double?) -> Double {
         min(max(((temperature ?? cool) - cool) / (hot - cool), 0), 1)

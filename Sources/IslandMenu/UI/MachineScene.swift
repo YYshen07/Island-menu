@@ -29,6 +29,24 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     private nonisolated static let maxTurnsPerSecond = 2.5
     private nonisolated static let minTurnsPerSecond = 0.25
     private nonisolated static let flashInterval = 0.14
+    /// The glint on a mirror logo: where the band starts and ends in view space (metres, well clear
+    /// of the logo on both sides) and how long one pass plus the pause after it takes.
+    private nonisolated static let sweepStart = -0.045
+    private nonisolated static let sweepEnd = 0.045
+    private nonisolated static let sweepPeriod = 2.4
+    private nonisolated static let sweepTravel = 0.9
+    private nonisolated static let sweepKey = "sweep"
+    private static let mirrorShader = """
+    #pragma arguments
+    float sweep;
+    #pragma body
+    float d = _surface.position.x + _surface.position.y * 0.55 - sweep;
+    float band = exp(-d * d / 0.00006);
+    float sheen = clamp(0.5 + 4.0 * _surface.position.y, 0.38, 0.66);
+    _surface.emission = float4(sheen + band, sheen + band, sheen + band, 1.0);
+    """
+    /// Whether the logo is a light (PROLED machines) or polished metal.
+    private let hasLogoLight = Hardware.hasLogoLight
 
     let scene: SCNScene
     let camera = SCNNode()
@@ -85,6 +103,14 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         }
         logo = geometryNode("Logo")?.geometry?.firstMaterial
         logo?.lightingModel = .constant
+        if !hasLogoLight, let logo {
+            // Older machines have a polished metal logo, not a lit one: a steady silver, with a
+            // glint that crosses it while keep-awake is on (the band is placed by `sweep`).
+            logo.diffuse.contents = NSColor.black
+            logo.emission.contents = NSColor.black
+            logo.shaderModifiers = [.surface: Self.mirrorShader]
+            logo.setValue(NSNumber(value: Float(Self.sweepStart)), forKey: Self.sweepKey)
+        }
         let logoMaterial = logo
         motion.withLock { $0.logo = logoMaterial }
         hinge = scene.rootNode.childNode(withName: "Lid_Hinge", recursively: true)
@@ -271,7 +297,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         }
         // While the logo is partying the render loop owns its colour.
         let logoStep = Int(min(max(logoLevel, 0), 1) * 100)
-        if !isPartying, logoStep != shownLogoStep {
+        if hasLogoLight, !isPartying, logoStep != shownLogoStep {
             shownLogoStep = logoStep
             logo?.emission.contents = NSColor(white: 0.15 + 0.85 * CGFloat(logoStep) / 100, alpha: 1)
             logo?.diffuse.contents = logo?.emission.contents
@@ -288,10 +314,20 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             shownLogoStep = -1
         }
         isPartying = partying
-        motion.withLock { $0.isPartying = partying }
+        let mirror = !hasLogoLight
+        motion.withLock {
+            $0.isPartying = partying
+            $0.isMirror = mirror
+        }
+        if mirror, !partying { logo?.setValue(NSNumber(value: Float(Self.sweepStart)), forKey: Self.sweepKey) }
     }
 
     /// Sets the turntable angle directly, in turns (0 = lid facing the camera).
+    /// Places the mirror logo's glint directly, 0 to 1 across the logo; for offscreen previews.
+    func setGlint(_ position: Double) {
+        logo?.setValue(NSNumber(value: Float(Self.sweepStart + (Self.sweepEnd - Self.sweepStart) * position)), forKey: Self.sweepKey)
+    }
+
     func setTurn(_ turns: Double) {
         motion.withLock { $0.turntable?.eulerAngles.y = CGFloat(turns * 2 * .pi) }
     }
@@ -301,7 +337,12 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             defer { motion.lastTime = time }
             guard let lastTime = motion.lastTime else { return }
             let elapsed = min(time - lastTime, 0.1)
-            if motion.isPartying, time - motion.lastFlash > Self.flashInterval {
+            if motion.isPartying, motion.isMirror {
+                // One pass of the glint, then a pause, like the foil on a trading card.
+                let phase = min(time.truncatingRemainder(dividingBy: Self.sweepPeriod) / Self.sweepTravel, 1)
+                let eased = phase * phase * (3 - 2 * phase)
+                motion.logo?.setValue(NSNumber(value: Float(Self.sweepStart + (Self.sweepEnd - Self.sweepStart) * eased)), forKey: Self.sweepKey)
+            } else if motion.isPartying, time - motion.lastFlash > Self.flashInterval {
                 motion.lastFlash = time
                 // Jump around the colour wheel rather than sweeping it, with the odd white strobe.
                 motion.flashHue = (motion.flashHue + CGFloat.random(in: 0.23...0.61)).truncatingRemainder(dividingBy: 1)
@@ -325,6 +366,7 @@ private struct Motion: @unchecked Sendable {
     var lastTime: TimeInterval?
     var logo: SCNMaterial?
     var isPartying = false
+    var isMirror = false
     var lastFlash: TimeInterval = 0
     var flashHue: CGFloat = 0
 }

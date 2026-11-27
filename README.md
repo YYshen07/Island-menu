@@ -189,6 +189,7 @@ open "build/Island Menu.app"
 
 - `Sources/IslandMenu/` — App 源码
 - `mockup/` — 网页设计稿（数据为模拟）
+- `docs/MAINTENANCE.md` — 维护手册：实现要点、调试方法、发版流程、已知限制
 - `docs/3d-model-brief.md`、`docs/3d-model-brief-lineup.md` — 3D 机模制作说明（现有机型、刘海机型全系）
 - `docs/images/` — 本页的截图，由 `scripts/screenshots.sh` 生成
 - `assets/icon/` — App 图标，由 `scripts/make_icns.sh` 生成

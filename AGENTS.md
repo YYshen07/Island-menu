@@ -34,6 +34,8 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
 - `Sources/IslandMenuHelper/` — root launch daemon that writes fan speeds (registered with `SMAppService.daemon`).
 - `Sources/IslandMenu/Settings/` — preferences store and the settings window.
 - `Sources/IslandMenu/Drop/` — AirDrop drop zone.
+- `docs/MAINTENANCE.md` — maintenance handbook (Chinese): how each feature works, debugging table, release
+  steps, what is untested. Keep it in step with this file when either changes.
 - `mockup/` — static web design mockup with simulated data.
 - `docs/3d-model-brief.md` — spec for the 3D machine model (built separately in Blender, lives in `assets/model/`).
 - `refs/` — cloned reference repos (git-ignored): logoctl, LogoLight, DynamicNotchKit, stats, macmon.

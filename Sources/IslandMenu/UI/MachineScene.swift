@@ -157,7 +157,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
             }
             if let housing = geometryNode("Fan_\(side)_Housing")?.geometry?.firstMaterial { housings.append(housing) }
         }
-        logo = installGlyphLogo()
+        logo = geometryNode("Logo")?.geometry?.firstMaterial
         logo?.lightingModel = .constant
         if !hasLogoLight, let logo {
             // Older machines have a polished metal logo, not a lit one: a steady silver, with a

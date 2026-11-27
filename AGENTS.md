@@ -57,8 +57,6 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
   `swift build` binary has no model and the machine section renders without it.
 - Check camera and lighting without launching the UI:
   `.build/debug/IslandMenu --render-model assets/model/macbook-pro-14.usdz /tmp/model.png`
-- The model's own logo mesh is a rough trace and off-centre; `MachineLogo.swift` replaces it at load with the
-  system font's Apple glyph (U+F8FF), centred on the lid.
 - `MachineScene` looks nodes up by the names in `docs/3d-model-brief.md`; renaming them breaks the bindings.
 - SceneKit calls the renderer delegate on its render thread, not the main actor.
 

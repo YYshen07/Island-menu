@@ -4,17 +4,17 @@
 
 | 机型与内部布局 | 合盖宽 × 深 × 厚（mm） | 原生分辨率 / ppi | 显示区宽 × 高（mm） | 电芯 | 风扇 | 三角面 | 材质 |
 |---|---|---|---|---:|---:|---:|---:|
-| Pro 14 PROLED · M5 Pro | 310.8 × 216.3 × 15.0 | 3024 × 1986 / 254 | 302.4 × 198.6 | 6 | 2 | 42,344 | 27 |
-| Pro 14 刘海 · 2021 M1 Pro | 312.6 × 221.2 × 15.5 | 3024 × 1964 / 254 | 302.4 × 196.4 | 6 | 2 | 42,912 | 27 |
-| Pro 16 刘海 · 2021 M1 系列 | 355.7 × 248.1 × 16.8 | 3456 × 2234 / 254 | 345.6 × 223.4 | 6 | 2 | 42,464 | 27 |
-| Air 13 · 2022 M2 | 304.1 × 215.0 × 11.3 | 2560 × 1664 / 224 | 290.29 × 188.69 | 4 | 0 | 23,406 | 22 |
-| Air 15 · 2023 M2 | 340.4 × 237.6 × 11.5 | 2880 × 1864 / 224 | 326.57 × 211.36 | 6 | 0 | 26,154 | 24 |
+| Pro 14 PROLED · M5 Pro | 310.8 × 216.3 × 15.0 | 3024 × 1986 / 254 | 302.4 × 198.6 | 6 | 2 | 43,392 | 27 |
+| Pro 14 刘海 · 2021 M1 Pro | 312.6 × 221.2 × 15.5 | 3024 × 1964 / 254 | 302.4 × 196.4 | 6 | 2 | 43,960 | 27 |
+| Pro 16 刘海 · 2021 M1 系列 | 355.7 × 248.1 × 16.8 | 3456 × 2234 / 254 | 345.6 × 223.4 | 6 | 2 | 43,512 | 27 |
+| Air 13 · 2022 M2 | 304.1 × 215.0 × 11.3 | 2560 × 1664 / 224 | 290.29 × 188.69 | 4 | 0 | 24,454 | 22 |
+| Air 15 · 2023 M2 | 340.4 × 237.6 × 11.5 | 2880 × 1864 / 224 | 326.57 × 211.36 | 6 | 0 | 27,202 | 24 |
 
 合盖尺寸、原生分辨率和像素密度取自下列 Apple 规格页。显示区按「像素数 × 25.4 ÷ ppi」计算，为包含圆角与摄像头区域的外接矩形。三角面按 GLB 中实际导出的索引计数，材质按导出材质表计数。
 
 ## 14 英寸 MacBook Pro PROLED XDR
 
-沿用现有 M5 Pro 源模型的机壳、键盘、脚垫、底面铣字和白色发光标志。内部按同代拆机的开底全景、双风扇和电池照片重排。六块电芯位于两侧与中央。已把 SoC、三个热区和两颗 SSD 放在主板朝底壳的一侧。弯叶、轮毂、蜗壳、独立鳍片和连接器均为网格。顶盖标志宽约 38 mm、高约 47 mm，键盘区约 278 × 113 mm、触控板约 135 × 79 mm，均为同代照片估算。风管及盖住芯片的结构做了剖开处理。[Apple 技术规格](https://support.apple.com/en-us/148301) · [iFixit PROLED 拆机及发光标志照片](https://www.ifixit.com/News/120152/we-tore-down-the-macbook-proled-xdr-and-found-the-secret-of-the-glowing-apple)
+沿用现有 M5 Pro 源模型的机壳、键盘、脚垫、底面铣字和白色发光标志。内部按同代拆机的开底全景、双风扇和电池照片重排。六块电芯位于两侧与中央。已把 SoC、三个热区和两颗 SSD 放在主板朝底壳的一侧。弯叶、轮毂、蜗壳、独立鳍片和连接器均为网格。键盘区约 278 × 113 mm、触控板约 135 × 79 mm，均为同代照片估算。风管及盖住芯片的结构做了剖开处理。[Apple 技术规格](https://support.apple.com/en-us/148301) · [iFixit PROLED 拆机及发光标志照片](https://www.ifixit.com/News/120152/we-tore-down-the-macbook-proled-xdr-and-found-the-secret-of-the-glowing-apple)
 
 [顶盖](macbook-pro-14-top.png) · [底面](macbook-pro-14-bottom.png) · [开盖](macbook-pro-14-open.png) · [前上方透视](preview.png)
 
@@ -41,6 +41,20 @@
 取自 2023 年 M2。按 15 英寸开底照片分别划出后排两块长电芯，以及靠前左右各两块较小电芯。六块总数亦见 TechInsights 的 A2941 拆机。两侧扬声器总成各包含三个单元，分别合并到 Speaker_L 和 Speaker_R。扬声器单元的中心、声腔深度、主板轮廓和遮罩开口为估算。午夜色外壳、被动散热、接口左右分布与 13 英寸相同，触控板与电池布局使用 15 英寸尺寸。[Apple 技术规格](https://support.apple.com/en-gb/111346) · [iFixit 15 英寸拆机、主板及扬声器对照](https://www.ifixit.com/News/76973/15-macbook-air-teardown-bigger-and-better-maybe-not-en) · [TechInsights A2941 电芯数量](https://www.techinsights.com/ko/node/53554)
 
 [顶盖](macbook-air-15-top.png) · [底面](macbook-air-15-bottom.png) · [开盖](macbook-air-15-open.png)
+
+## 顶盖 Apple 标志
+
+五款均取 macOS 系统字体 `/System/Library/Fonts/SFNS.ttf` 的 U+F8FF（`uniF8FF`）。按字形的 Bézier 曲线自适应细分，保留叶片和果身两条独立闭合轮廓，等比缩放后沿原厚度挤出。每款的 Logo 为 1,392 个三角面。顶盖图从外侧观察，铰链朝下，叶子向上、咬口在右。
+
+下表用对应机型的 Apple 官方 AR 产品模型生成顶盖正投影，量取标志和整块顶盖外缘的包围盒。高度为「正投影标志高度 ÷ 正投影顶盖深度 × 本模型顶盖深度」，宽度由系统字形的原始宽高比确定。Z 为标志包围盒中心相对顶盖包围盒中心的纵向偏移，按同一比例换算；正值指向远离铰链的前缘。所有 X 中心均为 0。表内数字是按官方产品视图换算的建模值，单位为 mm。
+
+| 机型 | Logo 宽 × 高 | 高度占顶盖深度 | 中心 X / Z | 正投影来源 |
+|---|---:|---:|---:|---|
+| Pro 14 PROLED | 37.85 × 46.56 | 21.524% | 0 / +3.90 | [Apple 14 英寸 PROLED 深空黑](https://www.apple.com.cn/105/media/us/macbook-pro/proled-xdr-display/2026/6d28dc1b-b32e-419e-8706-47639678b6da/ar/macbook-pro-14-in-space-black-variant.usdz) |
+| Pro 14 刘海 | 37.82 × 46.52 | 21.030% | 0 / +3.92 | [Apple 2021 年 14 英寸深空灰](https://www.apple.com.cn/105/media/us/macbook-pro-14-and-16/2021/a1c5d17e-d8e4-4fa8-b70a-bc61bd266412/ar/macbook_pro_14_space_gray.usdz) |
+| Pro 16 刘海 | 37.82 × 46.51 | 18.747% | 0 / +3.91 | [Apple 2021 年 16 英寸深空灰](https://www.apple.com.cn/105/media/us/macbook-pro-14-and-16/2021/a1c5d17e-d8e4-4fa8-b70a-bc61bd266412/ar/macbook_pro_16_space_gray.usdz) |
+| Air 13 | 37.65 × 46.31 | 21.537% | 0 / +3.39 | [Apple 2022 年 13 英寸 M2 午夜色](https://www.apple.com.cn/105/media/us/macbook-air-m2/2022/58a79d66-620c-4d70-8679-8db4c76ff675/ar/macbook_air_m2_chip_midnight_ios15.usdz) |
+| Air 15 | 37.67 × 46.33 | 19.500% | 0 / +3.91 | [Apple 2023 年 15 英寸 M2 午夜色](https://www.apple.com.cn/105/media/us/macbook-air-13-and-15/2023/f52c7a72-dff4-4f3c-9511-bf08e46c6f5f/ar/macbook_air_15_midnight.usdz) |
 
 ## 估算和展示取舍
 

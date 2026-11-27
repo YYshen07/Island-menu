@@ -63,6 +63,15 @@ def world_points(obj):
     return [obj.matrix_world @ v.co for v in obj.data.vertices]
 
 
+def check_logo_center(logo, lid):
+    def center_x(points):
+        xs = [p[0] for p in points]
+        return (min(xs) + max(xs)) / 2
+
+    offset_mm = abs(center_x(logo) - center_x(lid)) * 1000
+    assert offset_mm <= .05, f"Logo X offset from lid center: {offset_mm:.4f} mm"
+
+
 def check_bottom(scene):
     meshes = [o for o in scene.objects if o.type == "MESH" and o.name != "Shell_Bottom"]
     trees = {}
@@ -116,6 +125,7 @@ def check_source(base, expected, cutout, spec):
             low, high = map(Vector, (obj.bound_box[0], obj.bound_box[6]))
             assert ((low + high) / 2).length < .00001
             assert obj.location.y > 0 and obj.rotation_euler.to_matrix() == Matrix.Identity(3)
+    check_logo_center(world_points(objects["Logo"]), world_points(objects["Shell_Lid"]))
     check_bottom(scene)
 
 
@@ -139,6 +149,8 @@ def read_gltf(base, expected, cutout):
         assert all(p.get("mode", 4) == 4 for p in primitives)
         count = sum(g["accessors"][p["indices"]]["count"]//3 for p in primitives)
         assert count > 0 and (not name.endswith("_Rotor") or count <= 3000)
+        if name == "Logo":
+            assert count <= 1500, count
         total += count
     assert total <= 80000 and len(g["materials"]) <= 32
     check_materials(material_sets)
@@ -172,7 +184,7 @@ def check_usdz(base, expected, cutout, spec):
     assert not any(p.GetTypeName() in {"Camera", "Skeleton", "SkelAnimation"} or "Light" in p.GetTypeName() for p in prims)
     meshes = {p.GetName(): p for p in prims if p.IsA(UsdGeom.Mesh)}
     assert set(meshes) == expected - {"Lid_Hinge"}, set(meshes) ^ (expected - {"Lid_Hinge"})
-    sets, points = {}, []
+    sets, points, lid_parts = {}, [], {}
     xf = UsdGeom.XformCache()
     for name, mesh in meshes.items():
         group = mesh.GetParent()
@@ -185,7 +197,11 @@ def check_usdz(base, expected, cutout, spec):
             color = mat.ComputeSurfaceSource()[0].GetInput("diffuseColor")
             check_base_color(name, mat.GetPrim().GetName(), color.Get())
         transform = xf.GetLocalToWorldTransform(mesh)
-        points.extend(transform.Transform(p) for p in UsdGeom.Mesh(mesh).GetPointsAttr().Get())
+        vertices = [transform.Transform(p) for p in UsdGeom.Mesh(mesh).GetPointsAttr().Get()]
+        points.extend(vertices)
+        if name in {"Logo", "Shell_Lid"}:
+            lid_parts[name] = vertices
+    check_logo_center(lid_parts["Logo"], lid_parts["Shell_Lid"])
     check_materials(sets)
     close_dimensions(dimensions(points), [spec[0], spec[2], spec[1]])
 
@@ -200,6 +216,7 @@ def verify(model, spec):
     bpy.ops.import_scene.gltf(filepath=str(base.with_suffix(".glb")))
     imported = bpy.context.scene.objects
     assert {o.name for o in imported} == expected
+    check_logo_center(world_points(imported["Logo"]), world_points(imported["Shell_Lid"]))
     close_dimensions(dimensions([p for o in imported if o.type == "MESH" for p in world_points(o)]), spec[:3])
     for view in ("top", "bottom", "open"):
         data = (FOLDER / f"{model}-{view}.png").read_bytes()

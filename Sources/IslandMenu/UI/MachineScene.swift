@@ -85,7 +85,10 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     /// Loads the model for this Mac (or the one chosen in settings) in the chosen finish.
     static func current() -> MachineScene? {
         let model = MachineModel.current
-        return MachineScene(url: model.url, hasLogoLight: model.hasLogoLight, finish: Preferences.shared.machineFinish.color, screen: Preferences.shared.screenContent)
+        let scene = MachineScene(url: model.url, hasLogoLight: model.hasLogoLight, finish: Preferences.shared.machineFinish.color, screen: Preferences.shared.screenContent)
+        let store = StickerStore.shared
+        scene?.installStickers(store.stickers.compactMap { sticker in store.image(for: sticker).map { (sticker, $0) } })
+        return scene
     }
 
     init?(url: URL?, hasLogoLight: Bool, finish: NSColor?, screen: ScreenContent) {
@@ -101,6 +104,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         bindNodes()
         mountOnTurntable()
         addCameraAndLights()
+        updateAirflowVisibility()
         let startAngle: CGFloat = showsUnderside ? .pi : 0
         motion.withLock { $0.turntable?.eulerAngles.y = startAngle }
     }
@@ -138,7 +142,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
         }
     }
 
-    private func geometryNode(_ name: String) -> SCNNode? {
+    func geometryNode(_ name: String) -> SCNNode? {
         guard let node = scene.rootNode.childNode(withName: name, recursively: true) else { return nil }
         return node.geometry != nil ? node : node.childNodes.first { $0.geometry != nil }
     }
@@ -219,10 +223,16 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
 
     // MARK: - Poses
 
+    /// The airflow belongs to the underside; from the lid side its particles would show past the edges.
+    private func updateAirflowVisibility() {
+        for effect in airflow { effect.node.isHidden = !showsUnderside || isLidOpen }
+    }
+
     /// Turns the closed machine over to its other face.
     func flip() {
         guard !isLidOpen else { return setLidOpen(false) }
         showsUnderside.toggle()
+        updateAirflowVisibility()
         let turntable = motion.withLock { $0.turntable }
         animate(Self.flipDuration) {
             turntable?.eulerAngles.y += CGFloat.pi
@@ -233,6 +243,7 @@ final class MachineScene: NSObject, SCNSceneRendererDelegate {
     func setLidOpen(_ open: Bool, animated: Bool = true) {
         isLidOpen = open
         if open { installScreenImage() }
+        updateAirflowVisibility()
         let turntable = motion.withLock { $0.turntable }
         animate(animated ? Self.poseDuration : 0) {
             hinge?.eulerAngles = SCNVector3(hingeRest.x - (open ? Self.lidOpenAngle : 0), hingeRest.y, hingeRest.z)

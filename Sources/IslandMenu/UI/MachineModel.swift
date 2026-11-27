@@ -28,6 +28,17 @@ enum MachineModel: String, CaseIterable, Identifiable {
     /// Only the PROLED body has a lit logo; the others have a polished one.
     var hasLogoLight: Bool { self == .pro14 }
 
+    /// Width divided by depth of the closed lid, from Apple's published dimensions.
+    var lidAspect: CGFloat {
+        switch self {
+        case .pro14: 310.8 / 216.3
+        case .pro14Notch: 312.6 / 221.2
+        case .pro16Notch: 355.7 / 248.1
+        case .air13: 304.1 / 215.0
+        case .air15: 340.4 / 237.6
+        }
+    }
+
     var url: URL? { Bundle.main.url(forResource: rawValue, withExtension: "usdz") }
 
     /// The user's choice in settings, otherwise the body this Mac most likely is.
@@ -120,18 +131,18 @@ enum ScreenContent: String, CaseIterable, Identifiable {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("IslandMenu/screen-image")
     }
 
-    @MainActor private var sourceURL: URL? {
+    @MainActor private var source: CGImage? {
         switch self {
         case .off: nil
-        case .wallpaper: (NSScreen.builtIn ?? NSScreen.main).flatMap { NSWorkspace.shared.desktopImageURL(for: $0) }
-        case .custom: Self.customImageURL
+        case .wallpaper: Wallpaper.currentImage()
+        case .custom: NSImage(contentsOf: Self.customImageURL)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
         }
     }
 
     /// The picture scaled to fill a panel of the given aspect ratio (width / height), with the
     /// panel's rounded corners cut off; nil when there is nothing to show.
     @MainActor func image(aspect: CGFloat) -> CGImage? {
-        guard let url = sourceURL, let source = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil), aspect > 0 else { return nil }
+        guard let source, aspect > 0 else { return nil }
         let width = min(CGFloat(source.width), Self.maxPixelWidth).rounded()
         let size = CGSize(width: width, height: (width / aspect).rounded())
         guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,

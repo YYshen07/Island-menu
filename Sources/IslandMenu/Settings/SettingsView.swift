@@ -3,13 +3,14 @@ import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
-    /// `--settings-tab machine` (general, machine, alerts, fan, battery) opens on that tab, for screenshots.
+    /// `--settings-tab machine` (general, machine, stickers, alerts, fan, battery) opens on that tab, for screenshots.
     @State private var tab = CommandLine.arguments.firstIndex(of: "--settings-tab").map { CommandLine.arguments[$0 + 1] } ?? "general"
 
     var body: some View {
         TabView(selection: $tab) {
             GeneralSettings().tabItem { Label("通用", systemImage: "gearshape") }.tag("general")
             MachineSettings().tabItem { Label("机模", systemImage: "laptopcomputer") }.tag("machine")
+            StickerSettings().tabItem { Label("贴纸", systemImage: "face.smiling") }.tag("stickers")
             AlertSettings().tabItem { Label("提醒", systemImage: "bell.badge") }.tag("alerts")
             if Hardware.hasFans { FanSettings().tabItem { Label("风扇", systemImage: "fan") }.tag("fan") }
             BatterySettings().tabItem { Label("电池", systemImage: "battery.75percent") }.tag("battery")

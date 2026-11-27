@@ -13,6 +13,15 @@ enum ModelPreview {
         let finish = CommandLine.arguments.firstIndex(of: "--finish").flatMap { MachineFinish(rawValue: CommandLine.arguments[$0 + 1]) }
         let lit = !CommandLine.arguments.contains("--no-logo") && model.hasSuffix("macbook-pro-14.usdz")
         guard let machine = MachineScene(url: URL(fileURLWithPath: model), hasLogoLight: lit, finish: finish?.color, screen: CommandLine.arguments.firstIndex(of: "--screen").flatMap { ScreenContent(rawValue: CommandLine.arguments[$0 + 1]) } ?? .off), let device = MTLCreateSystemDefaultDevice() else { return false }
+        // `--sticker <picture>` cuts a sticker out of the picture and puts it on the lid in every effect.
+        if let flag = CommandLine.arguments.firstIndex(of: "--sticker"), let data = FileManager.default.contents(atPath: CommandLine.arguments[flag + 1]),
+           let cutout = try? StickerMaker.make(from: data) {
+            let aspect = Double(cutout.width) / Double(cutout.height)
+            let spots: [(Double, Double)] = [(-0.36, 0.25), (0.0, 0.3), (0.36, 0.25), (-0.25, -0.25), (0.25, -0.25)]
+            machine.installStickers(zip(StickerStyle.allCases, spots).map { style, spot in
+                (Sticker(x: spot.0, y: spot.1, size: 0.2, aspect: aspect, style: style), StickerMaker.styled(cutout, style))
+            })
+        }
         let thermal = ThermalSnapshot(dieMax: 78, dieMean: 70, ssd: 48, battery: 36)
         machine.apply(thermal: thermal, fans: [FanSnapshot(rpm: 2400, minimum: 1200, maximum: 6000), FanSnapshot(rpm: 2600, minimum: 1200, maximum: 6000)], logoLevel: 1)
         if let turn = CommandLine.arguments.last.flatMap(Double.init) { machine.setTurn(turn) }

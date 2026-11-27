@@ -46,6 +46,11 @@ No tests or linter are set up yet. Plain `swift build` needs `DEVELOPER_DIR=/App
   picture (`ScreenContent`; the panel mesh has no UVs, so the picture is a plane laid over it on first lid open).
   Nodes differ per body (no `Fan_*`/`Heatpipe` on the Airs, `Die_Eff` instead of `Die_Super` on notch Pros), so
   look parts up optionally. Only the PROLED body has a lit logo; the rest get the mirror shader.
+- Stickers (`Sources/IslandMenu/Stickers/`): Vision subject lifting plus a white border, saved as PNGs in
+  Application Support; `MachineStickers.swift` lays them on `Shell_Lid` as planes. Try one offscreen with
+  `--render-model <usdz> out.png --sticker "/Library/User Pictures/Animals/Eagle.heic" 0`.
+- The wallpaper comes from the wallpaper service's store (`Wallpaper.swift`); `NSWorkspace.desktopImageURL`
+  returns the default picture when an aerial is set.
 - Preview any of them: `--render-model assets/model/macbook-air-15.usdz out.png --finish skyBlue 0`.
 - `bundle.sh` copies the five `assets/model/*.usdz` into the app's `Contents/Resources`. A plain
   `swift build` binary has no model and the machine section renders without it.
